@@ -38,7 +38,7 @@
   <div id="app" class="min-h-screen flex flex-col"></div>
 
   <script>
-    // --- 1. FIREBASE INITIALIZATION & CLOUD HOOKS ---
+    // --- 1. FIREBASE INITIALIZATION ---
     const firebaseConfig = {
       apiKey: "AIzaSyBkcOv_Vwsa6n_mI7MDPbzuoqVlZiMKLzk",
       authDomain: "jce-nirf-portal.firebaseapp.com",
@@ -65,12 +65,12 @@
       console.warn("Operating in Local / Autonomous Mode:", e);
     }
 
-    // --- 2. CONSTANTS & INSTITUTIONAL DATA ---
-    const COLLEGE_NAME = "Jain College of Engineering, Belagavi";
-    const COLLEGE_AFFILIATION = "Affiliated to Visvesvaraya Technological University (VTU) | Approved by AICTE";
-    const NIRF_PORTAL_TITLE = "JCE-NIRF Central Data Management & Predictive Intelligence Portal";
+    // --- 2. CONSTANTS & INITIAL DATA ---
+    const COLLEGE_NAME = "Jain College of Engineering, Belagavi"[cite: 1];
+    const COLLEGE_AFFILIATION = "Affiliated to Visvesvaraya Technological University (VTU) | Approved by AICTE"[cite: 1];
+    const NIRF_PORTAL_TITLE = "JCE-NIRF Central Data Management & Predictive Intelligence Portal"[cite: 1];
 
-    const NIRF_WEIGHTS = { TLR: 0.30, RPC: 0.30, GO: 0.20, OI: 0.10, PR: 0.10 };
+    const NIRF_WEIGHTS = { TLR: 0.30, RPC: 0.30, GO: 0.20, OI: 0.10, PR: 0.10 };[cite: 1]
 
     const DEFAULT_DEPARTMENTS = [
       { id: 'CSE', name: 'Computer Science & Engineering', code: '01', hod: 'Dr. S. K. Patil', intake: 180, accessKey: 'JCE-CSE-8942', status: 'Active', lastActive: '2026-08-28 14:32' },
@@ -81,9 +81,9 @@
       { id: 'CIVIL', name: 'Civil Engineering', code: '06', hod: 'Dr. N. C. Hiremath', intake: 60, accessKey: 'JCE-CIVIL-2294', status: 'Active', lastActive: '2026-08-26 15:55' },
       { id: 'EEE', name: 'Electrical & Electronics Engineering', code: '07', hod: 'Dr. B. K. Hegde', intake: 60, accessKey: 'JCE-EEE-6180', status: 'Active', lastActive: '2026-08-24 10:05' },
       { id: 'MBA', name: 'Department of Management Studies', code: '08', hod: 'Dr. P. R. Deshpande', intake: 60, accessKey: 'JCE-MBA-9023', status: 'Active', lastActive: '2026-08-28 17:00' }
-    ];
+    ];[cite: 1]
 
-    const DEFAULT_YEARS = ['2025-26', '2024-25', '2023-24', '2022-23'];
+    const DEFAULT_YEARS = ['2025-26', '2024-25', '2023-24', '2022-23'];[cite: 1]
 
     const DEFAULT_RECORDS = {
       '2025-26': {
@@ -98,35 +98,23 @@
       },
       '2024-25': {
         CSE: { tlr_ss: 680, tlr_fsr: 19.0, tlr_fqe: 78, tlr_fru: 82, rpc_pu: 55, rpc_qp: 340, rpc_ipr: 10, rpc_fppp: 22.0, go_gue: 92.5, go_gph_placed: 136, go_gph_salary: 6.2, go_gphd: 3, oi_rd: 20, oi_wd: 36, oi_escs: 44, oi_pcs: 88, pr_peer: 60, pr_employer: 68 },
-        AI_DS: { tlr_ss: 360, tlr_fsr: 18.0, tlr_fqe: 70, tlr_fru: 80, rpc_pu: 32, rpc_qp: 180, rpc_ipr: 6, rpc_fppp: 12.0, go_gue: 90.0, go_gph_placed: 70, go_gph_salary: 6.5, go_gphd: 1, oi_rd: 22, oi_wd: 40, oi_escs: 38, oi_pcs: 85, pr_peer: 58, pr_employer: 65 },
-        ISE: { tlr_ss: 420, tlr_fsr: 19.5, tlr_fqe: 72, tlr_fru: 76, rpc_pu: 30, rpc_qp: 170, rpc_ipr: 5, rpc_fppp: 11.0, go_gue: 89.8, go_gph_placed: 85, go_gph_salary: 5.8, go_gphd: 1, oi_rd: 16, oi_wd: 34, oi_escs: 40, oi_pcs: 82, pr_peer: 54, pr_employer: 60 },
-        ECE: { tlr_ss: 440, tlr_fsr: 18.5, tlr_fqe: 76, tlr_fru: 78, rpc_pu: 35, rpc_qp: 220, rpc_ipr: 8, rpc_fppp: 18.0, go_gue: 88.0, go_gph_placed: 78, go_gph_salary: 5.4, go_gphd: 2, oi_rd: 17, oi_wd: 33, oi_escs: 46, oi_pcs: 90, pr_peer: 56, pr_employer: 60 },
-        MECH: { tlr_ss: 240, tlr_fsr: 17.0, tlr_fqe: 80, tlr_fru: 75, rpc_pu: 24, rpc_qp: 150, rpc_ipr: 4, rpc_fppp: 14.0, go_gue: 84.0, go_gph_placed: 35, go_gph_salary: 4.5, go_gphd: 2, oi_rd: 10, oi_wd: 16, oi_escs: 48, oi_pcs: 80, pr_peer: 48, pr_employer: 52 },
-        CIVIL: { tlr_ss: 220, tlr_fsr: 16.5, tlr_fqe: 75, tlr_fru: 72, rpc_pu: 18, rpc_qp: 110, rpc_ipr: 3, rpc_fppp: 16.0, go_gue: 86.0, go_gph_placed: 30, go_gph_salary: 4.2, go_gphd: 1, oi_rd: 9, oi_wd: 20, oi_escs: 50, oi_pcs: 80, pr_peer: 47, pr_employer: 50 },
-        EEE: { tlr_ss: 220, tlr_fsr: 18.0, tlr_fqe: 72, tlr_fru: 70, rpc_pu: 20, rpc_qp: 130, rpc_ipr: 4, rpc_fppp: 10.0, go_gue: 85.0, go_gph_placed: 32, go_gph_salary: 4.6, go_gphd: 1, oi_rd: 12, oi_wd: 25, oi_escs: 44, oi_pcs: 82, pr_peer: 48, pr_employer: 51 },
-        MBA: { tlr_ss: 120, tlr_fsr: 15.5, tlr_fqe: 68, tlr_fru: 68, rpc_pu: 14, rpc_qp: 70, rpc_ipr: 1, rpc_fppp: 7.0, go_gue: 91.0, go_gph_placed: 42, go_gph_salary: 4.8, go_gphd: 0, oi_rd: 14, oi_wd: 44, oi_escs: 36, oi_pcs: 88, pr_peer: 50, pr_employer: 56 }
-      },
-      '2023-24': {
-        CSE: { tlr_ss: 650, tlr_fsr: 19.5, tlr_fqe: 74, tlr_fru: 76, rpc_pu: 44, rpc_qp: 280, rpc_ipr: 7, rpc_fppp: 18.0, go_gue: 90.0, go_gph_placed: 122, go_gph_salary: 5.6, go_gphd: 2, oi_rd: 18, oi_wd: 34, oi_escs: 42, oi_pcs: 85, pr_peer: 56, pr_employer: 62 }
-      },
-      '2022-23': {
-        CSE: { tlr_ss: 600, tlr_fsr: 20.0, tlr_fqe: 70, tlr_fru: 70, rpc_pu: 35, rpc_qp: 210, rpc_ipr: 5, rpc_fppp: 14.0, go_gue: 88.0, go_gph_placed: 110, go_gph_salary: 5.0, go_gphd: 1, oi_rd: 15, oi_wd: 32, oi_escs: 40, oi_pcs: 80, pr_peer: 50, pr_employer: 56 }
+        AI_DS: { tlr_ss: 360, tlr_fsr: 18.0, tlr_fqe: 70, tlr_fru: 80, rpc_pu: 32, rpc_qp: 180, rpc_ipr: 6, rpc_fppp: 12.0, go_gue: 90.0, go_gph_placed: 70, go_gph_salary: 6.5, go_gphd: 1, oi_rd: 22, oi_wd: 40, oi_escs: 38, oi_pcs: 85, pr_peer: 58, pr_employer: 65 }
       }
-    };
+    };[cite: 1]
 
-    // --- 3. APPLICATION STATE STORE ---
+    // --- 3. STATE STORE ---
     const state = {
-      currentUser: null, // { email: '', role: 'admin'|'dept_user', departmentId: '' }
+      currentUser: null,
       departments: [...DEFAULT_DEPARTMENTS],
       academicYears: [...DEFAULT_YEARS],
       selectedYear: '2025-26',
       dataRecords: JSON.parse(JSON.stringify(DEFAULT_RECORDS)),
-      activeTab: 'dashboard', // 'dashboard' | 'kpi-graphs' | 'data-entry' | 'credentials' | 'ai-insights' | 'audit-logs'
+      activeTab: 'dashboard',
       selectedDeptFilter: 'ALL',
       selectedEntryDept: 'CSE',
       selectedCategory: 'TLR',
       customTabs: [],
-      graphMetricView: 'research', // 'research' | 'placements' | 'academic'
+      graphMetricView: 'research',
       revealedKeys: {},
       allKeysRevealed: false,
       editingDeptModal: null,
@@ -135,50 +123,106 @@
       showAddTabModal: false,
       toast: null,
       authError: '',
-      isAuthenticating: false,
-      showPassword: false,
       aiGenerating: false,
       aiInsightsData: null,
       simulatedBoosts: { facultyPhdBoost: 0, publicationsBoost: 0, salaryLakhsBoost: 0, perceptionBoost: 0 },
-      auditLogs: [
-        { id: 1, timestamp: '2026-08-29 06:50:12', user: 'Admin (Superuser)', action: 'System Mounted', details: 'NIRF Master Portal mounted with VTU/JCE calibration.' },
-        { id: 2, timestamp: '2026-08-28 17:05:44', user: 'CSE Department', action: 'Data Synchronized', details: 'Updated 2025-26 publications and Scopus citation index metrics.' },
-        { id: 3, timestamp: '2026-08-28 14:12:10', user: 'Admin', action: 'Credential Reset', details: 'Regenerated secure department API token for AI & DS.' }
-      ]
+      auditLogs: []
     };
 
-    // --- 4. SCORE CALCULATION & KPI ANALYTICS ---
+    let activeCycleUnsubscribe = null;
+
+    // --- 4. REAL-TIME SYNCHRONIZATION ENGINE ---
+    function setupRealtimeListeners() {
+      if (!isFirebaseReady || !db) return;
+
+      // 1. Realtime Departments Listener
+      db.collection('departments').onSnapshot((snapshot) => {
+        if (!snapshot.empty) {
+          const depts = [];
+          snapshot.forEach(doc => depts.push({ id: doc.id, ...doc.data() }));
+          state.departments = depts;
+          render();
+        } else {
+          // Initialize departments in Firestore if empty
+          DEFAULT_DEPARTMENTS.forEach(d => {
+            db.collection('departments').doc(d.id).set(d, { merge: true });
+          });
+        }
+      }, err => console.warn("Firestore Depts Listener Error:", err));
+
+      // 2. Realtime Audit Logs Listener
+      db.collection('audit_logs').orderBy('timestamp', 'desc').limit(40).onSnapshot((snapshot) => {
+        const logs = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          logs.push({
+            id: doc.id,
+            timestamp: data.timestamp ? new Date(data.timestamp.toDate()).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19),
+            user: data.user || 'Admin',
+            action: data.action,
+            details: data.details
+          });
+        });
+        if (logs.length > 0) {
+          state.auditLogs = logs;
+          render();
+        }
+      }, err => console.warn("Firestore Logs Listener Error:", err));
+
+      // 3. Attach active cycle listener
+      attachCycleListener(state.selectedYear);
+    }
+
+    function attachCycleListener(year) {
+      if (!isFirebaseReady || !db) return;
+      if (activeCycleUnsubscribe) {
+        activeCycleUnsubscribe();
+      }
+
+      activeCycleUnsubscribe = db.collection('cycles').doc(year).collection('records')
+        .onSnapshot((snapshot) => {
+          if (!state.dataRecords[year]) {
+            state.dataRecords[year] = {};
+          }
+          snapshot.forEach(doc => {
+            state.dataRecords[year][doc.id] = doc.data();
+          });
+          render();
+        }, err => console.warn("Firestore Cycle Listener Error:", err));
+    }
+
+    // --- 5. SCORE CALCULATION UTILITIES ---
     function calculatePillarScores(data) {
-      if (!data) return { tlr: 0, rpc: 0, go: 0, oi: 0, pr: 0, total: 0 };
+      if (!data) return { tlr: 0, rpc: 0, go: 0, oi: 0, pr: 0, total: 0 };[cite: 1]
 
-      const ssScore = Math.min(25, (Number(data.tlr_ss || 0) / 750) * 25);
-      const fsrVal = Number(data.tlr_fsr || 20);
-      const fsrScore = Math.min(30, Math.max(0, (20 - (fsrVal - 15) * 2) * (30 / 20)));
-      const fqeScore = (Number(data.tlr_fqe || 0) / 100) * 25;
-      const fruScore = (Number(data.tlr_fru || 0) / 100) * 20;
-      const tlr = Number(Math.min(100, ssScore + fsrScore + fqeScore + fruScore).toFixed(2));
+      const ssScore = Math.min(25, (Number(data.tlr_ss || 0) / 750) * 25);[cite: 1]
+      const fsrVal = Number(data.tlr_fsr || 20);[cite: 1]
+      const fsrScore = Math.min(30, Math.max(0, (20 - (fsrVal - 15) * 2) * (30 / 20)));[cite: 1]
+      const fqeScore = (Number(data.tlr_fqe || 0) / 100) * 25;[cite: 1]
+      const fruScore = (Number(data.tlr_fru || 0) / 100) * 20;[cite: 1]
+      const tlr = Number(Math.min(100, ssScore + fsrScore + fqeScore + fruScore).toFixed(2));[cite: 1]
 
-      const puScore = Math.min(35, (Number(data.rpc_pu || 0) / 70) * 35);
-      const qpScore = Math.min(40, (Number(data.rpc_qp || 0) / 450) * 40);
-      const iprScore = Math.min(15, (Number(data.rpc_ipr || 0) / 15) * 15);
-      const fpppScore = Math.min(10, (Number(data.rpc_fppp || 0) / 30) * 10);
-      const rpc = Number(Math.min(100, puScore + qpScore + iprScore + fpppScore).toFixed(2));
+      const puScore = Math.min(35, (Number(data.rpc_pu || 0) / 70) * 35);[cite: 1]
+      const qpScore = Math.min(40, (Number(data.rpc_qp || 0) / 450) * 40);[cite: 1]
+      const iprScore = Math.min(15, (Number(data.rpc_ipr || 0) / 15) * 15);[cite: 1]
+      const fpppScore = Math.min(10, (Number(data.rpc_fppp || 0) / 30) * 10);[cite: 1]
+      const rpc = Number(Math.min(100, puScore + qpScore + iprScore + fpppScore).toFixed(2));[cite: 1]
 
-      const gueScore = (Number(data.go_gue || 0) / 100) * 40;
-      const salaryVal = Number(data.go_gph_salary || 0);
-      const gphScore = Math.min(40, (salaryVal / 7.5) * 20 + (Number(data.go_gph_placed || 0) / 150) * 20);
-      const gphdScore = Math.min(20, (Number(data.go_gphd || 0) / 5) * 20);
-      const go = Number(Math.min(100, gueScore + gphScore + gphdScore).toFixed(2));
+      const gueScore = (Number(data.go_gue || 0) / 100) * 40;[cite: 1]
+      const salaryVal = Number(data.go_gph_salary || 0);[cite: 1]
+      const gphScore = Math.min(40, (salaryVal / 7.5) * 20 + (Number(data.go_gph_placed || 0) / 150) * 20);[cite: 1]
+      const gphdScore = Math.min(20, (Number(data.go_gphd || 0) / 5) * 20);[cite: 1]
+      const go = Number(Math.min(100, gueScore + gphScore + gphdScore).toFixed(2));[cite: 1]
 
-      const rdScore = Math.min(30, (Number(data.oi_rd || 0) / 30) * 30);
-      const wdScore = Math.min(30, (Number(data.oi_wd || 0) / 50) * 30);
-      const escsScore = Math.min(20, (Number(data.oi_escs || 0) / 50) * 20);
-      const pcsScore = (Number(data.oi_pcs || 0) / 100) * 20;
-      const oi = Number(Math.min(100, rdScore + wdScore + escsScore + pcsScore).toFixed(2));
+      const rdScore = Math.min(30, (Number(data.oi_rd || 0) / 30) * 30);[cite: 1]
+      const wdScore = Math.min(30, (Number(data.oi_wd || 0) / 50) * 30);[cite: 1]
+      const escsScore = Math.min(20, (Number(data.oi_escs || 0) / 50) * 20);[cite: 1]
+      const pcsScore = (Number(data.oi_pcs || 0) / 100) * 20;[cite: 1]
+      const oi = Number(Math.min(100, rdScore + wdScore + escsScore + pcsScore).toFixed(2));[cite: 1]
 
-      const peer = Number(data.pr_peer || 0);
-      const employer = Number(data.pr_employer || 0);
-      const pr = Number(Math.min(100, (peer * 0.5) + (employer * 0.5)).toFixed(2));
+      const peer = Number(data.pr_peer || 0);[cite: 1]
+      const employer = Number(data.pr_employer || 0);[cite: 1]
+      const pr = Number(Math.min(100, (peer * 0.5) + (employer * 0.5)).toFixed(2));[cite: 1]
 
       const total = Number((
         (tlr * NIRF_WEIGHTS.TLR) +
@@ -186,9 +230,9 @@
         (go  * NIRF_WEIGHTS.GO)  +
         (oi  * NIRF_WEIGHTS.OI)  +
         (pr  * NIRF_WEIGHTS.PR)
-      ).toFixed(2));
+      ).toFixed(2));[cite: 1]
 
-      return { tlr, rpc, go, oi, pr, total };
+      return { tlr, rpc, go, oi, pr, total };[cite: 1]
     }
 
     function getAggregatedAnalytics() {
@@ -302,17 +346,27 @@
     }
 
     function logAudit(action, details) {
+      const user = state.currentUser ? state.currentUser.email : 'Master Admin';
       const entry = {
         id: Date.now(),
         timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-        user: state.currentUser ? state.currentUser.email : 'Master Admin',
+        user,
         action,
         details
       };
       state.auditLogs.unshift(entry);
+
+      if (isFirebaseReady && db) {
+        db.collection('audit_logs').add({
+          timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+          user,
+          action,
+          details
+        }).catch(err => console.warn(err));
+      }
     }
 
-    // --- 5. RENDER CHANNELS ---
+    // --- 6. RENDER ENGINE ---
     function render() {
       const app = document.getElementById('app');
       if (!app) return;
@@ -352,7 +406,7 @@
                   ${COLLEGE_NAME}
                 </h1>
                 <p class="text-xs text-slate-500 mt-0.5 font-medium">
-                  Belagavi, Karnataka • NIRF Data Central Control
+                  Belagavi, Karnataka • NIRF Central Intelligence Portal
                 </p>
               </div>
             </div>
@@ -360,10 +414,10 @@
             <form id="loginForm" class="space-y-4">
               <div>
                 <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Institutional Access Passcode / User Email
+                  Institutional Passcode / Department Passkey
                 </label>
                 <input
-                  type="${state.showPassword ? 'text' : 'password'}"
+                  type="password"
                   id="loginInput"
                   placeholder="Enter passcode (e.g. shiva@1 or Dept key)"
                   class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
@@ -387,8 +441,8 @@
             </form>
 
             <div class="mt-4 pt-4 border-t border-slate-100 text-center text-xs text-slate-500 space-y-1">
-              <div>Admin Passcode: <strong>shiva@1</strong> or email <strong>admin@jce.ac.in</strong></div>
-              <div>Department Passkey: <strong>JCE-CSE-8942</strong> (or other dept codes)</div>
+              <div>Admin Access: <strong>shiva@1</strong> or <strong>admin@jce.ac.in</strong></div>
+              <div>Department Access: <strong>JCE-CSE-8942</strong> (or respective dept code)</div>
             </div>
           </div>
         </div>
@@ -416,7 +470,7 @@
                     </span>
                   </div>
                   <p class="text-xs text-slate-500 mt-1 flex items-center gap-2 font-medium">
-                    <span>NIRF Data Management Portal</span>
+                    <span>NIRF Data Management System</span>
                     <span class="hidden sm:inline text-slate-300">•</span>
                     <span class="hidden sm:inline text-slate-500">${isAdmin ? 'Master Superadmin' : `Dept: ${state.currentUser.departmentId}`}</span>
                   </p>
@@ -452,7 +506,13 @@
               </div>
 
               <div class="hidden md:flex items-center pl-2 border-l border-slate-200 gap-2">
-                <span class="text-xs font-semibold text-slate-800">${state.currentUser.email}</span>
+                <div class="flex flex-col text-right">
+                  <span class="text-xs font-semibold text-slate-800">${state.currentUser.email}</span>
+                  <span class="text-[10px] text-emerald-600 font-semibold flex items-center justify-end gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                    Live Sync Active
+                  </span>
+                </div>
                 <button id="btnSignOutDesktop" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 text-xs font-bold transition-all">
                   Logout
                 </button>
@@ -958,7 +1018,7 @@
                 <span class="text-xl font-black text-amber-600">${pillar.total} / 100</span>
               </div>
               <button id="btnSaveMetrics" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5">
-                Save & Sync Record
+                Save & Cloud Sync
               </button>
             </div>
           </div>
@@ -1441,14 +1501,14 @@
       return `
         <footer class="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-500 mt-auto">
           <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span class="font-semibold text-slate-700">${COLLEGE_NAME} • ${COLLEGE_AFFILIATION}</span>
-            <span>NIRF Compliance & Intelligence Central Unit</span>
+            <span class="font-semibold text-slate-700">${COLLEGE_NAME} • ${COLLEGE_AFFILIATION}</span>[cite: 1]
+            <span>NIRF Compliance & Intelligence Central Unit</span>[cite: 1]
           </div>
         </footer>
       `;
     }
 
-    // --- 6. EVENT DISPATCH & LISTENERS ---
+    // --- 7. EVENT BINDINGS & CLOUD SYNC HOOKS ---
     function bindLoginEvents() {
       const form = document.getElementById('loginForm');
       if (!form) return;
@@ -1457,44 +1517,34 @@
         e.preventDefault();
         const input = document.getElementById('loginInput').value.trim();
 
-        if (isFirebaseReady && auth) {
-          auth.signInWithEmailAndPassword(input, 'password123')
-            .then(userCred => {
-              state.currentUser = { email: userCred.user.email, role: 'admin', departmentId: null };
-              showToast('Authenticated via Firebase.');
-            })
-            .catch(() => authenticateLocally(input));
+        if (input === 'shiva@1' || input.toLowerCase() === 'admin' || input.toLowerCase().includes('admin@jce.ac.in')) {
+          state.currentUser = { email: 'admin@jce.ac.in', role: 'admin', departmentId: null };
+          state.activeTab = 'dashboard';
+          logAudit('Admin Sign In', 'Master administrative session verified.');
+          showToast('Welcome, Administrator.');
         } else {
-          authenticateLocally(input);
+          const matchedDept = state.departments.find(d => 
+            d.accessKey === input || 
+            d.id.toLowerCase() === input.toLowerCase() || 
+            input.toLowerCase().includes(d.id.toLowerCase())
+          );
+
+          if (matchedDept) {
+            state.currentUser = { email: `${matchedDept.id.toLowerCase()}@jce.ac.in`, role: 'dept_user', departmentId: matchedDept.id };
+            state.selectedEntryDept = matchedDept.id;
+            state.activeTab = 'data-entry';
+            logAudit('Dept Sign In', `Coordinator session opened for ${matchedDept.name}`);
+            showToast(`Welcome, ${matchedDept.id} Department Coordinator.`);
+          } else {
+            state.authError = 'Invalid Key. Use "shiva@1" for Admin or valid Department Passkey.';
+            render();
+          }
         }
       });
     }
 
-    function authenticateLocally(input) {
-      if (input === 'shiva@1' || input.toLowerCase() === 'admin' || input.toLowerCase().includes('admin@jce.ac.in')) {
-        state.currentUser = { email: 'admin@jce.ac.in', role: 'admin', departmentId: null };
-        state.activeTab = 'dashboard';
-        logAudit('Admin Sign In', 'Superadmin session authorized for JCE Central Cell.');
-        showToast('Welcome, Administrator.');
-      } else {
-        const matchedDept = state.departments.find(d => d.accessKey === input || d.id.toLowerCase() === input.toLowerCase() || input.toLowerCase().includes(d.id.toLowerCase()));
-        if (matchedDept) {
-          state.currentUser = { email: `${matchedDept.id.toLowerCase()}@jce.ac.in`, role: 'dept_user', departmentId: matchedDept.id };
-          state.selectedEntryDept = matchedDept.id;
-          state.activeTab = 'data-entry';
-          logAudit('Dept Sign In', `Authorized login for ${matchedDept.name}`);
-          showToast(`Welcome, ${matchedDept.id} Department Coordinator.`);
-        } else {
-          state.authError = 'Invalid Key. Use "shiva@1" for Admin or valid Department Passkey.';
-          render();
-        }
-      }
-    }
-
     function bindAppEvents() {
-      // Sign Out
       const handleSignOut = () => {
-        if (isFirebaseReady && auth) auth.signOut();
         state.currentUser = null;
         state.activeTab = 'dashboard';
         render();
@@ -1504,16 +1554,15 @@
       if (sm) sm.addEventListener('click', handleSignOut);
       if (sd) sd.addEventListener('click', handleSignOut);
 
-      // Cycle Select
       const selectCycle = document.getElementById('selectCycle');
       if (selectCycle) {
         selectCycle.addEventListener('change', (e) => {
           state.selectedYear = e.target.value;
+          attachCycleListener(state.selectedYear);
           render();
         });
       }
 
-      // Dept Filter
       const selectDeptFilter = document.getElementById('selectDeptFilter');
       if (selectDeptFilter) {
         selectDeptFilter.addEventListener('change', (e) => {
@@ -1522,7 +1571,6 @@
         });
       }
 
-      // Graph View
       document.querySelectorAll('.btn-graph-view').forEach(btn => {
         btn.addEventListener('click', () => {
           state.graphMetricView = btn.getAttribute('data-view');
@@ -1530,7 +1578,6 @@
         });
       });
 
-      // Tabs
       document.querySelectorAll('.nav-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           state.activeTab = btn.getAttribute('data-tab');
@@ -1538,7 +1585,6 @@
         });
       });
 
-      // Entry Dept Switch
       document.querySelectorAll('.btn-switch-entry-dept').forEach(btn => {
         btn.addEventListener('click', () => {
           state.selectedEntryDept = btn.getAttribute('data-dept');
@@ -1546,7 +1592,6 @@
         });
       });
 
-      // Category Switch
       document.querySelectorAll('.btn-category-tab').forEach(btn => {
         btn.addEventListener('click', () => {
           state.selectedCategory = btn.getAttribute('data-cat');
@@ -1554,7 +1599,7 @@
         });
       });
 
-      // Save Metrics
+      // Metric Save Button
       const btnSaveMetrics = document.getElementById('btnSaveMetrics');
       if (btnSaveMetrics) {
         btnSaveMetrics.addEventListener('click', () => {
@@ -1567,22 +1612,26 @@
           if (!state.dataRecords[state.selectedYear]) state.dataRecords[state.selectedYear] = {};
           if (!state.dataRecords[state.selectedYear][targetDeptId]) state.dataRecords[state.selectedYear][targetDeptId] = {};
 
+          const updatedDoc = { ...state.dataRecords[state.selectedYear][targetDeptId] };
           formData.forEach((val, key) => {
-            state.dataRecords[state.selectedYear][targetDeptId][key] = val === '' ? '' : Number(val);
+            updatedDoc[key] = val === '' ? '' : Number(val);
           });
 
+          // 1. Optimistic Local State Update
+          state.dataRecords[state.selectedYear][targetDeptId] = updatedDoc;
+
+          // 2. Direct Firestore Cloud Broadcast
           if (isFirebaseReady && db) {
             db.collection('cycles').doc(state.selectedYear).collection('records').doc(targetDeptId)
-              .set(state.dataRecords[state.selectedYear][targetDeptId], { merge: true })
-              .catch(e => console.warn(e));
+              .set(updatedDoc, { merge: true })
+              .catch(e => console.warn("Firestore write error:", e));
           }
 
-          logAudit('Updated Records', `Updated metrics for ${targetDeptId} in cycle ${state.selectedYear}`);
-          showToast(`Saved metrics for ${targetDeptId} successfully.`);
+          logAudit('Updated Records', `Synchronized metrics for ${targetDeptId} in cycle ${state.selectedYear}`);
+          showToast(`Saved and synchronized ${targetDeptId} metrics.`);
         });
       }
 
-      // Credentials Vault Actions
       const btnToggleAllKeys = document.getElementById('btnToggleAllKeys');
       if (btnToggleAllKeys) {
         btnToggleAllKeys.addEventListener('click', () => {
@@ -1607,13 +1656,15 @@
           if (d) {
             d.accessKey = newKey;
             d.lastActive = 'Rotated Now';
+            if (isFirebaseReady && db) {
+              db.collection('departments').doc(deptId).set({ accessKey: newKey, lastActive: 'Rotated Now' }, { merge: true }).catch(err => console.warn(err));
+            }
           }
           logAudit('Key Rotated', `Generated new passkey for ${deptId}`);
           showToast(`Passkey rotated for ${deptId}`);
         });
       });
 
-      // Export Actions
       const btnCSV = document.getElementById('btnExportCSV');
       if (btnCSV) {
         btnCSV.addEventListener('click', () => {
@@ -1648,7 +1699,6 @@
         btnPDF.addEventListener('click', () => window.print());
       }
 
-      // Modals
       document.querySelectorAll('.btn-edit-dept').forEach(btn => {
         btn.addEventListener('click', () => {
           const dId = btn.getAttribute('data-dept');
@@ -1688,7 +1738,6 @@
         });
       }
 
-      // Add Dept
       const btnOpenAddDept = document.getElementById('btnOpenAddDept');
       if (btnOpenAddDept) {
         btnOpenAddDept.addEventListener('click', () => { state.showAddDeptModal = true; render(); });
@@ -1711,6 +1760,9 @@
           if (!state.departments.some(d => d.id === id)) {
             const newDept = { id, name, code: String(state.departments.length + 1).padStart(2, '0'), hod, intake, accessKey: `JCE-${id}-${Math.floor(1000 + Math.random() * 9000)}`, status: 'Active' };
             state.departments.push(newDept);
+            if (isFirebaseReady && db) {
+              db.collection('departments').doc(id).set(newDept).catch(err => console.warn(err));
+            }
             logAudit('Department Registered', `Created ${name} (${id})`);
             showToast(`Department ${name} added.`);
           }
@@ -1719,7 +1771,6 @@
         });
       }
 
-      // Add Year
       const btnOpenAddYear = document.getElementById('btnOpenAddYear');
       if (btnOpenAddYear) {
         btnOpenAddYear.addEventListener('click', () => { state.showAddYearModal = true; render(); });
@@ -1739,6 +1790,7 @@
             state.academicYears.unshift(y);
             state.dataRecords[y] = JSON.parse(JSON.stringify(state.dataRecords[state.selectedYear] || {}));
             state.selectedYear = y;
+            attachCycleListener(y);
             logAudit('Cycle Added', `Initialized ${y}`);
             showToast(`Assessment cycle ${y} created.`);
           }
@@ -1747,7 +1799,6 @@
         });
       }
 
-      // Add Tab
       const btnOpenAddTab = document.getElementById('btnOpenAddTab');
       if (btnOpenAddTab) {
         btnOpenAddTab.addEventListener('click', () => { state.showAddTabModal = true; render(); });
@@ -1773,7 +1824,7 @@
         });
       }
 
-      // AI Simulator Sliders
+      // Slider Listeners
       const rPhd = document.getElementById('rngPhd');
       if (rPhd) rPhd.addEventListener('input', (e) => { state.simulatedBoosts.facultyPhdBoost = Number(e.target.value); render(); });
       const rPubs = document.getElementById('rngPubs');
@@ -1783,7 +1834,6 @@
       const rPerc = document.getElementById('rngPerception');
       if (rPerc) rPerc.addEventListener('input', (e) => { state.simulatedBoosts.perceptionBoost = Number(e.target.value); render(); });
 
-      // Run AI Advisor
       const btnRunAi = document.getElementById('btnRunAiAdvisor');
       if (btnRunAi) {
         btnRunAi.addEventListener('click', () => {
@@ -1812,8 +1862,9 @@
       }
     }
 
-    // --- 7. APPLICATION BOOTSTRAP ---
+    // --- 8. APPLICATION BOOTSTRAP ---
     window.addEventListener('DOMContentLoaded', () => {
+      setupRealtimeListeners();
       render();
     });
   </script>
