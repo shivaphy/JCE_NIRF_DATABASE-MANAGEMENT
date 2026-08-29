@@ -1,0 +1,1821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NIRF Data Management & Intelligence Portal - Jain College of Engineering, Belagavi</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .animate-shake { animation: shake 0.4s ease-in-out; }
+    @media print {
+      body { background-color: white !important; color: #0f172a !important; }
+      .no-print, header, nav, button, .modal-backdrop { display: none !important; }
+      .print-card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; background: white !important; color: #0f172a !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans selection:bg-amber-100 selection:text-amber-900 min-h-screen antialiased flex flex-col">
+
+  <div id="app" class="min-h-screen flex flex-col"></div>
+
+  <script>
+    // --- 1. FIREBASE INITIALIZATION & CLOUD HOOKS ---
+    const firebaseConfig = {
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    let auth = null;
+    let db = null;
+    let isFirebaseReady = false;
+
+    try {
+      if (typeof firebase !== 'undefined' && firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_FIREBASE_API_KEY") {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+        }
+        auth = firebase.auth();
+        db = firebase.firestore();
+        isFirebaseReady = true;
+      }
+    } catch (e) {
+      console.warn("Operating in Local / Autonomous Mode:", e);
+    }
+
+    // --- 2. CONSTANTS & INSTITUTIONAL DATA ---
+    const COLLEGE_NAME = "Jain College of Engineering, Belagavi";
+    const COLLEGE_AFFILIATION = "Affiliated to Visvesvaraya Technological University (VTU) | Approved by AICTE";
+    const NIRF_PORTAL_TITLE = "JCE-NIRF Central Data Management & Predictive Intelligence Portal";
+
+    const NIRF_WEIGHTS = { TLR: 0.30, RPC: 0.30, GO: 0.20, OI: 0.10, PR: 0.10 };
+
+    const DEFAULT_DEPARTMENTS = [
+      { id: 'CSE', name: 'Computer Science & Engineering', code: '01', hod: 'Dr. S. K. Patil', intake: 180, accessKey: 'JCE-CSE-8942', status: 'Active', lastActive: '2026-08-28 14:32' },
+      { id: 'AI_DS', name: 'Artificial Intelligence & Data Science', code: '02', hod: 'Dr. V. M. Joshi', intake: 120, accessKey: 'JCE-AIDS-4112', status: 'Active', lastActive: '2026-08-29 09:15' },
+      { id: 'ISE', name: 'Information Science & Engineering', code: '03', hod: 'Dr. R. A. Kulkarni', intake: 120, accessKey: 'JCE-ISE-7721', status: 'Active', lastActive: '2026-08-27 16:40' },
+      { id: 'ECE', name: 'Electronics & Communication Engg.', code: '04', hod: 'Dr. M. S. Hiremath', intake: 120, accessKey: 'JCE-ECE-3398', status: 'Active', lastActive: '2026-08-29 08:20' },
+      { id: 'MECH', name: 'Mechanical Engineering', code: '05', hod: 'Dr. G. B. Chate', intake: 60, accessKey: 'JCE-MECH-5510', status: 'Active', lastActive: '2026-08-25 11:10' },
+      { id: 'CIVIL', name: 'Civil Engineering', code: '06', hod: 'Dr. N. C. Hiremath', intake: 60, accessKey: 'JCE-CIVIL-2294', status: 'Active', lastActive: '2026-08-26 15:55' },
+      { id: 'EEE', name: 'Electrical & Electronics Engineering', code: '07', hod: 'Dr. B. K. Hegde', intake: 60, accessKey: 'JCE-EEE-6180', status: 'Active', lastActive: '2026-08-24 10:05' },
+      { id: 'MBA', name: 'Department of Management Studies', code: '08', hod: 'Dr. P. R. Deshpande', intake: 60, accessKey: 'JCE-MBA-9023', status: 'Active', lastActive: '2026-08-28 17:00' }
+    ];
+
+    const DEFAULT_YEARS = ['2025-26', '2024-25', '2023-24', '2022-23'];
+
+    const DEFAULT_RECORDS = {
+      '2025-26': {
+        CSE: { tlr_ss: 710, tlr_fsr: 18.5, tlr_fqe: 82, tlr_fru: 88, rpc_pu: 68, rpc_qp: 420, rpc_ipr: 14, rpc_fppp: 28.5, go_gue: 94.2, go_gph_placed: 148, go_gph_salary: 6.8, go_gphd: 4, oi_rd: 22, oi_wd: 38, oi_escs: 45, oi_pcs: 90, pr_peer: 65, pr_employer: 72 },
+        AI_DS: { tlr_ss: 440, tlr_fsr: 17.2, tlr_fqe: 75, tlr_fru: 85, rpc_pu: 45, rpc_qp: 260, rpc_ipr: 9, rpc_fppp: 18.0, go_gue: 92.0, go_gph_placed: 88, go_gph_salary: 7.2, go_gphd: 2, oi_rd: 25, oi_wd: 42, oi_escs: 40, oi_pcs: 88, pr_peer: 62, pr_employer: 70 },
+        ISE: { tlr_ss: 450, tlr_fsr: 19.0, tlr_fqe: 76, tlr_fru: 80, rpc_pu: 38, rpc_qp: 210, rpc_ipr: 7, rpc_fppp: 14.5, go_gue: 91.5, go_gph_placed: 94, go_gph_salary: 6.2, go_gphd: 1, oi_rd: 18, oi_wd: 36, oi_escs: 42, oi_pcs: 85, pr_peer: 58, pr_employer: 65 },
+        ECE: { tlr_ss: 460, tlr_fsr: 18.0, tlr_fqe: 80, tlr_fru: 82, rpc_pu: 42, rpc_qp: 280, rpc_ipr: 11, rpc_fppp: 22.0, go_gue: 89.4, go_gph_placed: 86, go_gph_salary: 5.8, go_gphd: 3, oi_rd: 19, oi_wd: 35, oi_escs: 48, oi_pcs: 92, pr_peer: 60, pr_employer: 64 },
+        MECH: { tlr_ss: 220, tlr_fsr: 16.5, tlr_fqe: 84, tlr_fru: 78, rpc_pu: 29, rpc_qp: 190, rpc_ipr: 6, rpc_fppp: 16.0, go_gue: 86.5, go_gph_placed: 38, go_gph_salary: 4.8, go_gphd: 2, oi_rd: 12, oi_wd: 18, oi_escs: 50, oi_pcs: 85, pr_peer: 52, pr_employer: 56 },
+        CIVIL: { tlr_ss: 210, tlr_fsr: 16.0, tlr_fqe: 78, tlr_fru: 76, rpc_pu: 22, rpc_qp: 140, rpc_ipr: 4, rpc_fppp: 19.5, go_gue: 88.0, go_gph_placed: 34, go_gph_salary: 4.5, go_gphd: 1, oi_rd: 10, oi_wd: 22, oi_escs: 52, oi_pcs: 85, pr_peer: 50, pr_employer: 54 },
+        EEE: { tlr_ss: 215, tlr_fsr: 17.5, tlr_fqe: 75, tlr_fru: 74, rpc_pu: 24, rpc_qp: 160, rpc_ipr: 5, rpc_fppp: 12.0, go_gue: 87.2, go_gph_placed: 36, go_gph_salary: 5.0, go_gphd: 1, oi_rd: 14, oi_wd: 28, oi_escs: 46, oi_pcs: 85, pr_peer: 51, pr_employer: 55 },
+        MBA: { tlr_ss: 120, tlr_fsr: 15.0, tlr_fqe: 70, tlr_fru: 72, rpc_pu: 18, rpc_qp: 90, rpc_ipr: 2, rpc_fppp: 8.5, go_gue: 93.0, go_gph_placed: 46, go_gph_salary: 5.2, go_gphd: 0, oi_rd: 16, oi_wd: 46, oi_escs: 38, oi_pcs: 90, pr_peer: 55, pr_employer: 60 }
+      },
+      '2024-25': {
+        CSE: { tlr_ss: 680, tlr_fsr: 19.0, tlr_fqe: 78, tlr_fru: 82, rpc_pu: 55, rpc_qp: 340, rpc_ipr: 10, rpc_fppp: 22.0, go_gue: 92.5, go_gph_placed: 136, go_gph_salary: 6.2, go_gphd: 3, oi_rd: 20, oi_wd: 36, oi_escs: 44, oi_pcs: 88, pr_peer: 60, pr_employer: 68 },
+        AI_DS: { tlr_ss: 360, tlr_fsr: 18.0, tlr_fqe: 70, tlr_fru: 80, rpc_pu: 32, rpc_qp: 180, rpc_ipr: 6, rpc_fppp: 12.0, go_gue: 90.0, go_gph_placed: 70, go_gph_salary: 6.5, go_gphd: 1, oi_rd: 22, oi_wd: 40, oi_escs: 38, oi_pcs: 85, pr_peer: 58, pr_employer: 65 },
+        ISE: { tlr_ss: 420, tlr_fsr: 19.5, tlr_fqe: 72, tlr_fru: 76, rpc_pu: 30, rpc_qp: 170, rpc_ipr: 5, rpc_fppp: 11.0, go_gue: 89.8, go_gph_placed: 85, go_gph_salary: 5.8, go_gphd: 1, oi_rd: 16, oi_wd: 34, oi_escs: 40, oi_pcs: 82, pr_peer: 54, pr_employer: 60 },
+        ECE: { tlr_ss: 440, tlr_fsr: 18.5, tlr_fqe: 76, tlr_fru: 78, rpc_pu: 35, rpc_qp: 220, rpc_ipr: 8, rpc_fppp: 18.0, go_gue: 88.0, go_gph_placed: 78, go_gph_salary: 5.4, go_gphd: 2, oi_rd: 17, oi_wd: 33, oi_escs: 46, oi_pcs: 90, pr_peer: 56, pr_employer: 60 },
+        MECH: { tlr_ss: 240, tlr_fsr: 17.0, tlr_fqe: 80, tlr_fru: 75, rpc_pu: 24, rpc_qp: 150, rpc_ipr: 4, rpc_fppp: 14.0, go_gue: 84.0, go_gph_placed: 35, go_gph_salary: 4.5, go_gphd: 2, oi_rd: 10, oi_wd: 16, oi_escs: 48, oi_pcs: 80, pr_peer: 48, pr_employer: 52 },
+        CIVIL: { tlr_ss: 220, tlr_fsr: 16.5, tlr_fqe: 75, tlr_fru: 72, rpc_pu: 18, rpc_qp: 110, rpc_ipr: 3, rpc_fppp: 16.0, go_gue: 86.0, go_gph_placed: 30, go_gph_salary: 4.2, go_gphd: 1, oi_rd: 9, oi_wd: 20, oi_escs: 50, oi_pcs: 80, pr_peer: 47, pr_employer: 50 },
+        EEE: { tlr_ss: 220, tlr_fsr: 18.0, tlr_fqe: 72, tlr_fru: 70, rpc_pu: 20, rpc_qp: 130, rpc_ipr: 4, rpc_fppp: 10.0, go_gue: 85.0, go_gph_placed: 32, go_gph_salary: 4.6, go_gphd: 1, oi_rd: 12, oi_wd: 25, oi_escs: 44, oi_pcs: 82, pr_peer: 48, pr_employer: 51 },
+        MBA: { tlr_ss: 120, tlr_fsr: 15.5, tlr_fqe: 68, tlr_fru: 68, rpc_pu: 14, rpc_qp: 70, rpc_ipr: 1, rpc_fppp: 7.0, go_gue: 91.0, go_gph_placed: 42, go_gph_salary: 4.8, go_gphd: 0, oi_rd: 14, oi_wd: 44, oi_escs: 36, oi_pcs: 88, pr_peer: 50, pr_employer: 56 }
+      },
+      '2023-24': {
+        CSE: { tlr_ss: 650, tlr_fsr: 19.5, tlr_fqe: 74, tlr_fru: 76, rpc_pu: 44, rpc_qp: 280, rpc_ipr: 7, rpc_fppp: 18.0, go_gue: 90.0, go_gph_placed: 122, go_gph_salary: 5.6, go_gphd: 2, oi_rd: 18, oi_wd: 34, oi_escs: 42, oi_pcs: 85, pr_peer: 56, pr_employer: 62 }
+      },
+      '2022-23': {
+        CSE: { tlr_ss: 600, tlr_fsr: 20.0, tlr_fqe: 70, tlr_fru: 70, rpc_pu: 35, rpc_qp: 210, rpc_ipr: 5, rpc_fppp: 14.0, go_gue: 88.0, go_gph_placed: 110, go_gph_salary: 5.0, go_gphd: 1, oi_rd: 15, oi_wd: 32, oi_escs: 40, oi_pcs: 80, pr_peer: 50, pr_employer: 56 }
+      }
+    };
+
+    // --- 3. APPLICATION STATE STORE ---
+    const state = {
+      currentUser: null, // { email: '', role: 'admin'|'dept_user', departmentId: '' }
+      departments: [...DEFAULT_DEPARTMENTS],
+      academicYears: [...DEFAULT_YEARS],
+      selectedYear: '2025-26',
+      dataRecords: JSON.parse(JSON.stringify(DEFAULT_RECORDS)),
+      activeTab: 'dashboard', // 'dashboard' | 'kpi-graphs' | 'data-entry' | 'credentials' | 'ai-insights' | 'audit-logs'
+      selectedDeptFilter: 'ALL',
+      selectedEntryDept: 'CSE',
+      selectedCategory: 'TLR',
+      customTabs: [],
+      graphMetricView: 'research', // 'research' | 'placements' | 'academic'
+      revealedKeys: {},
+      allKeysRevealed: false,
+      editingDeptModal: null,
+      showAddDeptModal: false,
+      showAddYearModal: false,
+      showAddTabModal: false,
+      toast: null,
+      authError: '',
+      isAuthenticating: false,
+      showPassword: false,
+      aiGenerating: false,
+      aiInsightsData: null,
+      simulatedBoosts: { facultyPhdBoost: 0, publicationsBoost: 0, salaryLakhsBoost: 0, perceptionBoost: 0 },
+      auditLogs: [
+        { id: 1, timestamp: '2026-08-29 06:50:12', user: 'Admin (Superuser)', action: 'System Mounted', details: 'NIRF Master Portal mounted with VTU/JCE calibration.' },
+        { id: 2, timestamp: '2026-08-28 17:05:44', user: 'CSE Department', action: 'Data Synchronized', details: 'Updated 2025-26 publications and Scopus citation index metrics.' },
+        { id: 3, timestamp: '2026-08-28 14:12:10', user: 'Admin', action: 'Credential Reset', details: 'Regenerated secure department API token for AI & DS.' }
+      ]
+    };
+
+    // --- 4. SCORE CALCULATION & KPI ANALYTICS ---
+    function calculatePillarScores(data) {
+      if (!data) return { tlr: 0, rpc: 0, go: 0, oi: 0, pr: 0, total: 0 };
+
+      const ssScore = Math.min(25, (Number(data.tlr_ss || 0) / 750) * 25);
+      const fsrVal = Number(data.tlr_fsr || 20);
+      const fsrScore = Math.min(30, Math.max(0, (20 - (fsrVal - 15) * 2) * (30 / 20)));
+      const fqeScore = (Number(data.tlr_fqe || 0) / 100) * 25;
+      const fruScore = (Number(data.tlr_fru || 0) / 100) * 20;
+      const tlr = Number(Math.min(100, ssScore + fsrScore + fqeScore + fruScore).toFixed(2));
+
+      const puScore = Math.min(35, (Number(data.rpc_pu || 0) / 70) * 35);
+      const qpScore = Math.min(40, (Number(data.rpc_qp || 0) / 450) * 40);
+      const iprScore = Math.min(15, (Number(data.rpc_ipr || 0) / 15) * 15);
+      const fpppScore = Math.min(10, (Number(data.rpc_fppp || 0) / 30) * 10);
+      const rpc = Number(Math.min(100, puScore + qpScore + iprScore + fpppScore).toFixed(2));
+
+      const gueScore = (Number(data.go_gue || 0) / 100) * 40;
+      const salaryVal = Number(data.go_gph_salary || 0);
+      const gphScore = Math.min(40, (salaryVal / 7.5) * 20 + (Number(data.go_gph_placed || 0) / 150) * 20);
+      const gphdScore = Math.min(20, (Number(data.go_gphd || 0) / 5) * 20);
+      const go = Number(Math.min(100, gueScore + gphScore + gphdScore).toFixed(2));
+
+      const rdScore = Math.min(30, (Number(data.oi_rd || 0) / 30) * 30);
+      const wdScore = Math.min(30, (Number(data.oi_wd || 0) / 50) * 30);
+      const escsScore = Math.min(20, (Number(data.oi_escs || 0) / 50) * 20);
+      const pcsScore = (Number(data.oi_pcs || 0) / 100) * 20;
+      const oi = Number(Math.min(100, rdScore + wdScore + escsScore + pcsScore).toFixed(2));
+
+      const peer = Number(data.pr_peer || 0);
+      const employer = Number(data.pr_employer || 0);
+      const pr = Number(Math.min(100, (peer * 0.5) + (employer * 0.5)).toFixed(2));
+
+      const total = Number((
+        (tlr * NIRF_WEIGHTS.TLR) +
+        (rpc * NIRF_WEIGHTS.RPC) +
+        (go  * NIRF_WEIGHTS.GO)  +
+        (oi  * NIRF_WEIGHTS.OI)  +
+        (pr  * NIRF_WEIGHTS.PR)
+      ).toFixed(2));
+
+      return { tlr, rpc, go, oi, pr, total };
+    }
+
+    function getAggregatedAnalytics() {
+      const yearData = state.dataRecords[state.selectedYear] || {};
+      const deptKeys = Object.keys(yearData);
+      if (deptKeys.length === 0) return null;
+
+      let totalTLR = 0, totalRPC = 0, totalGO = 0, totalOI = 0, totalPR = 0;
+      let totalEnrolled = 0, totalPubs = 0, totalCitations = 0, totalPatents = 0, totalGrantLakhs = 0, totalPlaced = 0;
+      let highestSalary = 0, highestSalaryDept = '';
+      let highestPubs = 0, highestPubsDept = '';
+
+      const departmentScores = [];
+
+      deptKeys.forEach(deptId => {
+        const dData = yearData[deptId] || {};
+        const pillar = calculatePillarScores(dData);
+        totalTLR += pillar.tlr;
+        totalRPC += pillar.rpc;
+        totalGO  += pillar.go;
+        totalOI  += pillar.oi;
+        totalPR  += pillar.pr;
+
+        const ss = Number(dData.tlr_ss || 0);
+        const pu = Number(dData.rpc_pu || 0);
+        const qp = Number(dData.rpc_qp || 0);
+        const ipr = Number(dData.rpc_ipr || 0);
+        const fppp = Number(dData.rpc_fppp || 0);
+        const placed = Number(dData.go_gph_placed || 0);
+        const salary = Number(dData.go_gph_salary || 0);
+
+        totalEnrolled += ss;
+        totalPubs += pu;
+        totalCitations += qp;
+        totalPatents += ipr;
+        totalGrantLakhs += fppp;
+        totalPlaced += placed;
+
+        if (salary > highestSalary) { highestSalary = salary; highestSalaryDept = deptId; }
+        if (pu > highestPubs) { highestPubs = pu; highestPubsDept = deptId; }
+
+        const rawDept = state.departments.find(d => d.id === deptId);
+        departmentScores.push({
+          deptId,
+          deptName: rawDept ? rawDept.name : deptId,
+          intake: rawDept ? rawDept.intake : 60,
+          raw: dData,
+          ...pillar
+        });
+      });
+
+      const count = deptKeys.length;
+      const avgTLR = Number((totalTLR / count).toFixed(2));
+      const avgRPC = Number((totalRPC / count).toFixed(2));
+      const avgGO  = Number((totalGO / count).toFixed(2));
+      const avgOI  = Number((totalOI / count).toFixed(2));
+      const avgPR  = Number((totalPR / count).toFixed(2));
+
+      const compositeScore = Number((
+        (avgTLR * NIRF_WEIGHTS.TLR) +
+        (avgRPC * NIRF_WEIGHTS.RPC) +
+        (avgGO  * NIRF_WEIGHTS.GO)  +
+        (avgOI  * NIRF_WEIGHTS.OI)  +
+        (avgPR  * NIRF_WEIGHTS.PR)
+      ).toFixed(2));
+
+      let predictedBand = "Rank 151 - 200 Band";
+      let badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
+      if (compositeScore >= 62.0) {
+        predictedBand = "Top 100 All-India Rank (Target Range 65 - 90)";
+        badgeColor = "bg-emerald-50 text-emerald-800 border-emerald-200";
+      } else if (compositeScore >= 54.0) {
+        predictedBand = "Rank 101 - 150 Band";
+        badgeColor = "bg-blue-50 text-blue-800 border-blue-200";
+      } else if (compositeScore < 45.0) {
+        predictedBand = "Rank 201 - 300 / Emerging Contender";
+        badgeColor = "bg-rose-50 text-rose-800 border-rose-200";
+      }
+
+      const historyTrend = state.academicYears.map(yr => {
+        const yRec = state.dataRecords[yr] || {};
+        const yDepts = Object.keys(yRec);
+        if (yDepts.length === 0) return { year: yr, score: 0 };
+        let sum = 0;
+        yDepts.forEach(d => { sum += calculatePillarScores(yRec[d]).total; });
+        return { year: yr, score: Number((sum / yDepts.length).toFixed(2)) };
+      }).reverse();
+
+      return {
+        avgTLR, avgRPC, avgGO, avgOI, avgPR,
+        compositeScore,
+        predictedBand,
+        badgeColor,
+        departmentScores,
+        historyTrend,
+        kpis: {
+          totalEnrolled, totalPubs, totalCitations, totalPatents,
+          totalGrantLakhs: totalGrantLakhs.toFixed(1), totalPlaced,
+          highestSalary, highestSalaryDept, highestPubs, highestPubsDept
+        }
+      };
+    }
+
+    function showToast(msg) {
+      state.toast = msg;
+      render();
+      setTimeout(() => {
+        state.toast = null;
+        render();
+      }, 3500);
+    }
+
+    function logAudit(action, details) {
+      const entry = {
+        id: Date.now(),
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        user: state.currentUser ? state.currentUser.email : 'Master Admin',
+        action,
+        details
+      };
+      state.auditLogs.unshift(entry);
+    }
+
+    // --- 5. RENDER CHANNELS ---
+    function render() {
+      const app = document.getElementById('app');
+      if (!app) return;
+
+      if (!state.currentUser) {
+        app.innerHTML = renderLogin();
+        bindLoginEvents();
+        return;
+      }
+
+      app.innerHTML = `
+        ${renderHeader()}
+        ${renderNav()}
+        ${renderToast()}
+        <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+          ${renderTabContent()}
+        </main>
+        ${renderModals()}
+        ${renderFooter()}
+      `;
+      bindAppEvents();
+    }
+
+    function renderLogin() {
+      return `
+        <div class="min-h-screen bg-slate-100 text-slate-800 flex flex-col justify-center items-center p-4">
+          <div class="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-8">
+            <div class="text-center space-y-3 mb-6">
+              <div class="inline-flex items-center justify-center p-3.5 bg-gradient-to-tr from-amber-500 to-amber-600 rounded-2xl shadow-md text-white mb-2 font-bold text-xl">
+                JCE
+              </div>
+              <div>
+                <span class="text-xs font-bold tracking-widest text-amber-700 uppercase bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                  Institutional Access Only
+                </span>
+                <h1 class="text-2xl font-bold text-slate-900 mt-2 tracking-tight">
+                  ${COLLEGE_NAME}
+                </h1>
+                <p class="text-xs text-slate-500 mt-0.5 font-medium">
+                  Belagavi, Karnataka • NIRF Data Central Control
+                </p>
+              </div>
+            </div>
+
+            <form id="loginForm" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
+                  Institutional Access Passcode / User Email
+                </label>
+                <input
+                  type="${state.showPassword ? 'text' : 'password'}"
+                  id="loginInput"
+                  placeholder="Enter passcode (e.g. shiva@1 or Dept key)"
+                  class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                  required
+                  autofocus
+                />
+              </div>
+
+              ${state.authError ? `
+                <div class="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs animate-shake">
+                  ${state.authError}
+                </div>
+              ` : ''}
+
+              <button
+                type="submit"
+                class="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 text-white font-bold rounded-xl text-sm shadow-md transition-all active:scale-[0.99]"
+              >
+                Authenticate & Enter Portal
+              </button>
+            </form>
+
+            <div class="mt-4 pt-4 border-t border-slate-100 text-center text-xs text-slate-500 space-y-1">
+              <div>Admin Passcode: <strong>shiva@1</strong> or email <strong>admin@jce.ac.in</strong></div>
+              <div>Department Passkey: <strong>JCE-CSE-8942</strong> (or other dept codes)</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHeader() {
+      const isAdmin = state.currentUser.role === 'admin';
+      return `
+        <header class="sticky top-0 z-40 bg-white/95 border-b border-slate-200 backdrop-blur-md px-4 sm:px-6 py-3 shadow-sm">
+          <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <div class="flex items-center gap-3.5 w-full md:w-auto justify-between md:justify-start">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 flex items-center justify-center text-white font-black shadow-md">
+                  JCE
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight leading-none">
+                      ${COLLEGE_NAME}
+                    </h1>
+                    <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      Belagavi
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1 flex items-center gap-2 font-medium">
+                    <span>NIRF Data Management Portal</span>
+                    <span class="hidden sm:inline text-slate-300">•</span>
+                    <span class="hidden sm:inline text-slate-500">${isAdmin ? 'Master Superadmin' : `Dept: ${state.currentUser.departmentId}`}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button id="btnSignOutMobile" class="md:hidden px-3 py-1.5 text-xs rounded-lg bg-slate-100 text-slate-600 hover:text-rose-600 border border-slate-200">
+                Sign Out
+              </button>
+            </div>
+
+            <div class="flex items-center flex-wrap gap-2.5 w-full md:w-auto justify-end">
+              <div class="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 text-xs">
+                <span class="text-slate-600 px-2 font-medium">Cycle:</span>
+                <select id="selectCycle" class="bg-white text-slate-900 font-semibold rounded-lg px-2.5 py-1 border border-slate-200 cursor-pointer text-xs shadow-sm">
+                  ${state.academicYears.map(yr => `<option value="${yr}" ${yr === state.selectedYear ? 'selected' : ''}>${yr}</option>`).join('')}
+                </select>
+                ${isAdmin ? `
+                  <button id="btnOpenAddYear" class="ml-1 px-2 py-0.5 hover:bg-slate-200 rounded-md text-slate-600 font-bold" title="Add New Cycle">+</button>
+                ` : ''}
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                <button id="btnExportCSV" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 text-xs font-semibold shadow-sm">
+                  CSV
+                </button>
+                <button id="btnExportJSON" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 text-xs font-semibold shadow-sm">
+                  JSON
+                </button>
+                <button id="btnPrintPDF" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl border border-slate-200 text-xs font-semibold shadow-sm">
+                  Dossier
+                </button>
+              </div>
+
+              <div class="hidden md:flex items-center pl-2 border-l border-slate-200 gap-2">
+                <span class="text-xs font-semibold text-slate-800">${state.currentUser.email}</span>
+                <button id="btnSignOutDesktop" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 text-xs font-bold transition-all">
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+      `;
+    }
+
+    function renderNav() {
+      const isAdmin = state.currentUser.role === 'admin';
+      const tabs = [
+        ...(isAdmin ? [
+          { id: 'dashboard', label: 'Overview & Ranking Analytics' },
+          { id: 'kpi-graphs', label: 'Scorecard & KPI Graphs Hub', badge: 'Live Graphs' }
+        ] : []),
+        { id: 'data-entry', label: isAdmin ? 'Department NIRF Entry & Edit' : `${state.currentUser.departmentId} Data Entry` },
+        ...(isAdmin ? [
+          { id: 'credentials', label: 'Department Access Keys', badge: 'Admin Vault' },
+          { id: 'ai-insights', label: 'AI Predictive Advisor & Simulation', badge: 'AI' },
+          { id: 'audit-logs', label: 'Audit Trail Logs' }
+        ] : [])
+      ];
+
+      return `
+        <div class="bg-white border-b border-slate-200 px-4 sm:px-6 shadow-sm">
+          <div class="max-w-7xl mx-auto flex items-center space-x-1 sm:space-x-2 overflow-x-auto py-2 no-scrollbar">
+            ${tabs.map(t => `
+              <button
+                class="nav-tab-btn flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap ${state.activeTab === t.id ? 'bg-amber-500 text-white font-bold shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}"
+                data-tab="${t.id}"
+              >
+                <span>${t.label}</span>
+                ${t.badge ? `<span class="text-[10px] px-1.5 py-0.2 rounded font-black ${state.activeTab === t.id ? 'bg-white text-amber-600' : 'bg-amber-100 text-amber-800'}">${t.badge}</span>` : ''}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderToast() {
+      if (!state.toast) return '';
+      return `
+        <div class="fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-xl bg-slate-900 text-white text-sm font-semibold flex items-center gap-2">
+          <span>${state.toast}</span>
+        </div>
+      `;
+    }
+
+    function renderTabContent() {
+      const isAdmin = state.currentUser.role === 'admin';
+      if (state.activeTab === 'dashboard' && isAdmin) return renderDashboard();
+      if (state.activeTab === 'kpi-graphs' && isAdmin) return renderKpiGraphs();
+      if (state.activeTab === 'data-entry') return renderDataEntry();
+      if (state.activeTab === 'credentials' && isAdmin) return renderCredentialsVault();
+      if (state.activeTab === 'ai-insights' && isAdmin) return renderAiInsights();
+      if (state.activeTab === 'audit-logs' && isAdmin) return renderAuditLogs();
+      return renderDataEntry();
+    }
+
+    function renderDashboard() {
+      const institutionalAnalytics = getAggregatedAnalytics();
+      if (!institutionalAnalytics) return `<div class="p-8 text-center text-slate-500">No records found.</div>`;
+
+      return `
+        <div class="space-y-6">
+          <div class="relative overflow-hidden bg-gradient-to-r from-blue-50/60 via-amber-50/40 to-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div class="lg:col-span-7 space-y-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
+                    NIRF Assessment Cycle: ${state.selectedYear}
+                  </span>
+                  <span class="text-xs font-semibold px-3 py-1 rounded-full border ${institutionalAnalytics.badgeColor}">
+                    ${institutionalAnalytics.predictedBand}
+                  </span>
+                </div>
+                
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Institutional Ranking Scorecard
+                </h2>
+                <p class="text-sm text-slate-600 leading-relaxed max-w-xl font-normal">
+                  Aggregated real-time evaluation across all ${state.departments.length} active academic departments at Jain College of Engineering, Belagavi according to official MHRD/NIRF weighted parameters.
+                </p>
+
+                <div class="pt-2 flex flex-wrap gap-3">
+                  <button class="nav-tab-btn px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold rounded-xl shadow-sm" data-tab="kpi-graphs">
+                    Open KPI Graphs Window
+                  </button>
+                  <button class="nav-tab-btn px-4 py-2 bg-white text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 shadow-sm" data-tab="data-entry">
+                    Update Department Submissions
+                  </button>
+                </div>
+              </div>
+
+              <div class="lg:col-span-5 flex flex-col items-center justify-center p-6 bg-white rounded-2xl border border-slate-200 shadow-sm text-center">
+                <span class="text-xs uppercase tracking-widest text-slate-500 font-bold">Composite NIRF Score (100)</span>
+                <div class="text-5xl sm:text-6xl font-black text-amber-600 my-2">${institutionalAnalytics.compositeScore}</div>
+                <div class="text-xs text-slate-500 font-medium">
+                  Baseline Growth: <span class="text-emerald-600 font-bold">+${(institutionalAnalytics.compositeScore - 48.2).toFixed(1)} pts</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            ${[
+              { key: 'TLR', label: 'Teaching, Learning & Resources', weight: '30%', score: institutionalAnalytics.avgTLR, target: '75.0', color: 'from-blue-50 to-white', border: 'border-blue-200', text: 'text-blue-700', bar: 'bg-blue-600' },
+              { key: 'RPC', label: 'Research & Professional Practice', weight: '30%', score: institutionalAnalytics.avgRPC, target: '60.0', color: 'from-purple-50 to-white', border: 'border-purple-200', text: 'text-purple-700', bar: 'bg-purple-600' },
+              { key: 'GO',  label: 'Graduation Outcomes', weight: '20%', score: institutionalAnalytics.avgGO, target: '80.0', color: 'from-emerald-50 to-white', border: 'border-emerald-200', text: 'text-emerald-700', bar: 'bg-emerald-600' },
+              { key: 'OI',  label: 'Outreach & Inclusivity', weight: '10%', score: institutionalAnalytics.avgOI, target: '70.0', color: 'from-amber-50 to-white', border: 'border-amber-200', text: 'text-amber-700', bar: 'bg-amber-600' },
+              { key: 'PR',  label: 'Perception (Peer & Recruiter)', weight: '10%', score: institutionalAnalytics.avgPR, target: '65.0', color: 'from-rose-50 to-white', border: 'border-rose-200', text: 'text-rose-700', bar: 'bg-rose-600' }
+            ].map(pillar => `
+              <div class="bg-gradient-to-b ${pillar.color} border ${pillar.border} rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-sm">
+                <div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-black uppercase tracking-wider ${pillar.text}">${pillar.key}</span>
+                    <span class="text-[10px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded-full border border-slate-200 shadow-sm">${pillar.weight}</span>
+                  </div>
+                  <h4 class="text-xs font-semibold text-slate-800 mt-1 line-clamp-1">${pillar.label}</h4>
+                </div>
+                <div>
+                  <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-black text-slate-900">${pillar.score}</span>
+                    <span class="text-[11px] text-slate-500 font-medium">Target: ${pillar.target}</span>
+                  </div>
+                  <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
+                    <div class="${pillar.bar} h-full rounded-full transition-all duration-500" style="width: ${Math.min(100, pillar.score)}%"></div>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-8 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h3 class="text-base font-bold text-slate-900">Department NIRF Performance Matrix</h3>
+                  <p class="text-xs text-slate-500 font-medium">Weighted score breakdown across active departments</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-slate-600 font-medium">Filter:</span>
+                  <select id="selectDeptFilter" class="bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 px-2.5 py-1 font-semibold">
+                    <option value="ALL" ${state.selectedDeptFilter === 'ALL' ? 'selected' : ''}>All Departments (${state.departments.length})</option>
+                    ${state.departments.map(d => `<option value="${d.id}" ${state.selectedDeptFilter === d.id ? 'selected' : ''}>${d.id} - ${d.name}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-slate-700">
+                  <thead class="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th class="py-3 px-3">Dept</th>
+                      <th class="py-3 px-3">Intake</th>
+                      <th class="py-3 px-3 text-right">TLR (30%)</th>
+                      <th class="py-3 px-3 text-right">RPC (30%)</th>
+                      <th class="py-3 px-3 text-right">GO (20%)</th>
+                      <th class="py-3 px-3 text-right">OI (10%)</th>
+                      <th class="py-3 px-3 text-right">PR (10%)</th>
+                      <th class="py-3 px-3 text-right font-bold text-amber-700">Total (100)</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100 font-medium">
+                    ${institutionalAnalytics.departmentScores
+                      .filter(d => state.selectedDeptFilter === 'ALL' || d.deptId === state.selectedDeptFilter)
+                      .map(dept => `
+                        <tr class="hover:bg-slate-50">
+                          <td class="py-3 px-3">
+                            <div class="font-bold text-slate-900">${dept.deptId}</div>
+                            <div class="text-[10px] text-slate-500 max-w-[140px] truncate">${dept.deptName}</div>
+                          </td>
+                          <td class="py-3 px-3 text-slate-600">${dept.intake}</td>
+                          <td class="py-3 px-3 text-right text-blue-700 font-semibold">${dept.tlr}</td>
+                          <td class="py-3 px-3 text-right text-purple-700 font-semibold">${dept.rpc}</td>
+                          <td class="py-3 px-3 text-right text-emerald-700 font-semibold">${dept.go}</td>
+                          <td class="py-3 px-3 text-right text-amber-700 font-semibold">${dept.oi}</td>
+                          <td class="py-3 px-3 text-right text-rose-700 font-semibold">${dept.pr}</td>
+                          <td class="py-3 px-3 text-right font-black text-amber-700 text-sm">${dept.total}</td>
+                        </tr>
+                      `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="lg:col-span-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Longitudinal NIRF Growth</h3>
+                <p class="text-xs text-slate-500 mt-0.5 font-medium">Institution aggregate trajectory</p>
+
+                <div class="mt-6 space-y-4">
+                  ${institutionalAnalytics.historyTrend.map(h => `
+                    <div class="space-y-1.5">
+                      <div class="flex items-center justify-between text-xs">
+                        <span class="font-semibold ${h.year === state.selectedYear ? 'text-amber-700 font-bold' : 'text-slate-700'}">Cycle ${h.year}</span>
+                        <span class="text-slate-900 font-bold">${h.score} pts</span>
+                      </div>
+                      <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
+                        <div class="h-full rounded-full ${h.year === state.selectedYear ? 'bg-amber-500' : 'bg-blue-600'}" style="width: ${Math.min(100, (h.score / 80) * 100)}%"></div>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="p-4 bg-amber-50/70 border border-amber-200 rounded-xl">
+                <div class="text-xs text-amber-900 font-bold mb-1">Institutional Target 2026-27</div>
+                <p class="text-xs text-amber-800 leading-relaxed">
+                  Target Score: <strong class="text-slate-900 font-bold">65.00 Pts</strong> for Top 100 NIRF Engineering Institutional Bracket.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderKpiGraphs() {
+      const analytics = getAggregatedAnalytics();
+      if (!analytics) return '';
+
+      const tlrR = analytics.avgTLR / 100;
+      const rpcR = analytics.avgRPC / 100;
+      const goR  = analytics.avgGO / 100;
+      const oiR  = analytics.avgOI / 100;
+      const prR  = analytics.avgPR / 100;
+
+      const realPoints = [
+        `${150},${150 - 110 * tlrR}`,
+        `${150 + 104 * rpcR},${150 - 34 * rpcR}`,
+        `${150 + 64 * goR},${150 + 88 * goR}`,
+        `${150 - 64 * oiR},${150 + 88 * oiR}`,
+        `${150 - 104 * prR},${150 - 34 * prR}`
+      ].join(' ');
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">
+                  Visual Intelligence Hub
+                </span>
+                <span class="text-xs font-semibold text-slate-500">Cycle: ${state.selectedYear}</span>
+              </div>
+              <h2 class="text-xl font-extrabold text-slate-900 mt-1">
+                NIRF Scorecard & Key Performance Indicators (KPIs)
+              </h2>
+              <p class="text-xs text-slate-500 font-medium">
+                Real-time interactive graphical telemetry mapped from department submissions.
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-xs font-semibold">
+              <button class="btn-graph-view px-3 py-1.5 rounded-lg transition-all ${state.graphMetricView === 'research' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600'}" data-view="research">Research</button>
+              <button class="btn-graph-view px-3 py-1.5 rounded-lg transition-all ${state.graphMetricView === 'placements' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600'}" data-view="placements">Placements</button>
+              <button class="btn-graph-view px-3 py-1.5 rounded-lg transition-all ${state.graphMetricView === 'academic' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-600'}" data-view="academic">Academics</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Publications</span>
+              <div class="text-2xl font-black text-purple-700">${analytics.kpis.totalPubs}</div>
+              <div class="text-[10px] text-slate-500">Top: ${analytics.kpis.highestPubsDept} (${analytics.kpis.highestPubs})</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Citations</span>
+              <div class="text-2xl font-black text-indigo-700">${analytics.kpis.totalCitations}</div>
+              <div class="text-[10px] text-slate-500">Scopus / WoS</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Patents & IPR</span>
+              <div class="text-2xl font-black text-amber-700">${analytics.kpis.totalPatents}</div>
+              <div class="text-[10px] text-slate-500">Published / Granted</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">R&D Grants</span>
+              <div class="text-2xl font-black text-emerald-700">₹${analytics.kpis.totalGrantLakhs} L</div>
+              <div class="text-[10px] text-slate-500">Funded projects</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Placements</span>
+              <div class="text-2xl font-black text-blue-700">${analytics.kpis.totalPlaced}</div>
+              <div class="text-[10px] text-slate-500">Offers Count</div>
+            </div>
+            <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-1">
+              <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Highest CTC</span>
+              <div class="text-2xl font-black text-rose-700">₹${analytics.kpis.highestSalary} LPA</div>
+              <div class="text-[10px] text-slate-500">Lead: ${analytics.kpis.highestSalaryDept}</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">NIRF 5-Pillar Radar Benchmark</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Geometric balance across all 5 evaluation criteria</p>
+              </div>
+
+              <div class="relative flex items-center justify-center p-2">
+                <svg viewBox="0 0 300 300" class="w-full max-w-[280px] h-auto overflow-visible">
+                  ${[0.2, 0.4, 0.6, 0.8, 1.0].map(ring => {
+                    const pts = [
+                      [150, 150 - 110 * ring],
+                      [150 + 104 * ring, 150 - 34 * ring],
+                      [150 + 64 * ring, 150 + 88 * ring],
+                      [150 - 64 * ring, 150 + 88 * ring],
+                      [150 - 104 * ring, 150 - 34 * ring]
+                    ].map(p => p.join(',')).join(' ');
+                    return `<polygon points="${pts}" fill="none" stroke="#e2e8f0" stroke-width="1" />`;
+                  }).join('')}
+
+                  ${[
+                    [150, 40], [254, 116], [214, 238], [86, 238], [46, 116]
+                  ].map(pt => `<line x1="150" y1="150" x2="${pt[0]}" y2="${pt[1]}" stroke="#cbd5e1" stroke-dasharray="3 3" />`).join('')}
+
+                  <polygon
+                    points="150,${150 - 110 * 0.75} ${150 + 104 * 0.60},${150 - 34 * 0.60} ${150 + 64 * 0.80},${150 + 88 * 0.80} ${150 - 64 * 0.70},${150 + 88 * 0.70} ${150 - 104 * 0.65},${150 - 34 * 0.65}"
+                    fill="rgba(59, 130, 246, 0.08)"
+                    stroke="#93c5fd"
+                    stroke-width="1.5"
+                    stroke-dasharray="4 4"
+                  />
+
+                  <polygon points="${realPoints}" fill="rgba(245, 158, 11, 0.25)" stroke="#d97706" stroke-width="2.5" />
+
+                  <text x="150" y="24" text-anchor="middle" class="text-[10px] font-bold fill-blue-700">TLR (${analytics.avgTLR})</text>
+                  <text x="270" y="118" text-anchor="start" class="text-[10px] font-bold fill-purple-700">RPC (${analytics.avgRPC})</text>
+                  <text x="225" y="258" text-anchor="start" class="text-[10px] font-bold fill-emerald-700">GO (${analytics.avgGO})</text>
+                  <text x="75" y="258" text-anchor="end" class="text-[10px] font-bold fill-amber-700">OI (${analytics.avgOI})</text>
+                  <text x="30" y="118" text-anchor="end" class="text-[10px] font-bold fill-rose-700">PR (${analytics.avgPR})</text>
+                </svg>
+              </div>
+
+              <div class="flex items-center justify-center gap-4 text-xs font-semibold pt-2 border-t border-slate-100">
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-amber-500 border border-amber-600"></span><span class="text-slate-700">JCE Current Live</span></div>
+                <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-100 border border-blue-400 border-dashed"></span><span class="text-slate-500">Top-100 Target</span></div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">
+                  ${state.graphMetricView === 'research' ? 'Department Research Footprint (Publications & Citations)' : ''}
+                  ${state.graphMetricView === 'placements' ? 'Graduation & Placement Metrics (Offers & Median CTC)' : ''}
+                  ${state.graphMetricView === 'academic' ? 'Academic Infrastructure (Student Strength & FSR)' : ''}
+                </h3>
+                <p class="text-xs text-slate-500 mt-0.5">Cross-departmental comparative performance</p>
+              </div>
+
+              <div class="space-y-3 pt-2">
+                ${analytics.departmentScores.map(dept => {
+                  const raw = dept.raw || {};
+                  let primaryVal = 0, secondaryVal = '', primaryMax = 100, barColor = 'bg-amber-500';
+
+                  if (state.graphMetricView === 'research') {
+                    primaryVal = Number(raw.rpc_pu || 0);
+                    secondaryVal = `${Number(raw.rpc_qp || 0)} Citations`;
+                    primaryMax = 80;
+                    barColor = 'bg-purple-600';
+                  } else if (state.graphMetricView === 'placements') {
+                    primaryVal = Number(raw.go_gph_placed || 0);
+                    secondaryVal = `₹${raw.go_gph_salary || 0} LPA`;
+                    primaryMax = 160;
+                    barColor = 'bg-emerald-600';
+                  } else {
+                    primaryVal = Number(raw.tlr_ss || 0);
+                    secondaryVal = `1:${raw.tlr_fsr || 20} FSR`;
+                    primaryMax = 800;
+                    barColor = 'bg-blue-600';
+                  }
+
+                  const barPercent = Math.min(100, Math.max(8, (primaryVal / primaryMax) * 100));
+
+                  return `
+                    <div class="space-y-1">
+                      <div class="flex items-center justify-between text-xs font-semibold">
+                        <div class="flex items-center gap-2">
+                          <span class="font-bold text-slate-900 w-12">${dept.deptId}</span>
+                          <span class="text-[11px] text-slate-500 font-normal truncate max-w-[180px]">${dept.deptName}</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-[11px]">
+                          <span class="font-bold text-slate-900">${primaryVal}</span>
+                          <span class="text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-mono">${secondaryVal}</span>
+                        </div>
+                      </div>
+                      <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden border border-slate-200">
+                        <div class="${barColor} h-full rounded-full transition-all duration-500" style="width: ${barPercent}%"></div>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-900">Department Comprehensive NIRF Heatmap Matrix</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-center text-xs">
+                <thead class="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3 text-left">Department</th>
+                    <th class="py-2.5 px-3">Teaching (TLR)</th>
+                    <th class="py-2.5 px-3">Research (RPC)</th>
+                    <th class="py-2.5 px-3">Graduation (GO)</th>
+                    <th class="py-2.5 px-3">Outreach (OI)</th>
+                    <th class="py-2.5 px-3">Perception (PR)</th>
+                    <th class="py-2.5 px-3">Aggregated Composite</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 font-bold">
+                  ${analytics.departmentScores.map(dept => {
+                    const getHeatClass = (val) => {
+                      if (val >= 75) return 'bg-emerald-50 text-emerald-800 border border-emerald-200';
+                      if (val >= 50) return 'bg-amber-50 text-amber-800 border border-amber-200';
+                      return 'bg-rose-50 text-rose-800 border border-rose-200';
+                    };
+                    return `
+                      <tr class="hover:bg-slate-50">
+                        <td class="py-2.5 px-3 text-left font-bold text-slate-900">${dept.deptId}<span class="text-[10px] text-slate-500 block font-normal">${dept.deptName}</span></td>
+                        <td class="p-2"><span class="px-2.5 py-1 rounded-lg inline-block ${getHeatClass(dept.tlr)}">${dept.tlr}</span></td>
+                        <td class="p-2"><span class="px-2.5 py-1 rounded-lg inline-block ${getHeatClass(dept.rpc)}">${dept.rpc}</span></td>
+                        <td class="p-2"><span class="px-2.5 py-1 rounded-lg inline-block ${getHeatClass(dept.go)}">${dept.go}</span></td>
+                        <td class="p-2"><span class="px-2.5 py-1 rounded-lg inline-block ${getHeatClass(dept.oi)}">${dept.oi}</span></td>
+                        <td class="p-2"><span class="px-2.5 py-1 rounded-lg inline-block ${getHeatClass(dept.pr)}">${dept.pr}</span></td>
+                        <td class="p-2"><span class="px-3 py-1 rounded-lg inline-block bg-slate-900 text-amber-400 font-black">${dept.total} / 100</span></td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDataEntry() {
+      const isAdmin = state.currentUser.role === 'admin';
+      const targetDeptId = isAdmin ? state.selectedEntryDept : state.currentUser.departmentId;
+      const deptMeta = state.departments.find(d => d.id === targetDeptId) || { name: targetDeptId, hod: 'N/A', intake: 60 };
+      
+      const yearRecords = state.dataRecords[state.selectedYear] || {};
+      const currentData = yearRecords[targetDeptId] || {
+        tlr_ss: 300, tlr_fsr: 18.0, tlr_fqe: 70, tlr_fru: 70,
+        rpc_pu: 20, rpc_qp: 100, rpc_ipr: 2, rpc_fppp: 10.0,
+        go_gue: 85.0, go_gph_placed: 40, go_gph_salary: 4.5, go_gphd: 1,
+        oi_rd: 15, oi_wd: 30, oi_escs: 40, oi_pcs: 80,
+        pr_peer: 50, pr_employer: 50
+      };
+
+      const pillar = calculatePillarScores(currentData);
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-bold text-slate-900">
+                  NIRF Parameter Entry Console
+                </h2>
+                <span class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md border border-amber-200">
+                  Cycle ${state.selectedYear}
+                </span>
+              </div>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">Update verified evidence metrics across official parameters</p>
+            </div>
+
+            ${isAdmin ? `
+              <div class="flex items-center gap-1.5 flex-wrap">
+                ${state.departments.map(d => `
+                  <button
+                    class="btn-switch-entry-dept px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${state.selectedEntryDept === d.id ? 'bg-amber-500 text-white shadow-sm' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}"
+                    data-dept="${d.id}"
+                  >
+                    ${d.id}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 text-xs shadow-sm">
+            <div class="flex items-center gap-3">
+              <div class="p-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 font-bold text-sm">
+                ${targetDeptId}
+              </div>
+              <div>
+                <h4 class="font-bold text-slate-900 text-sm">${deptMeta.name}</h4>
+                <p class="text-slate-500">HOD: ${deptMeta.hod} • Intake: ${deptMeta.intake} Seats</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <div class="text-right">
+                <span class="text-[10px] uppercase text-slate-500 font-bold block">Department Total Score</span>
+                <span class="text-xl font-black text-amber-600">${pillar.total} / 100</span>
+              </div>
+              <button id="btnSaveMetrics" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm flex items-center gap-1.5">
+                Save & Sync Record
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 border-b border-slate-200 pb-2 overflow-x-auto">
+            ${[
+              { id: 'TLR', label: '1. Teaching, Learning & Resources (TLR)' },
+              { id: 'RPC', label: '2. Research & Professional Practice (RPC)' },
+              { id: 'GO',  label: '3. Graduation Outcomes (GO)' },
+              { id: 'OI',  label: '4. Outreach & Inclusivity (OI)' },
+              { id: 'PR',  label: '5. Perception (PR)' },
+              ...state.customTabs.map(t => ({ id: t.id, label: `Custom: ${t.name}` }))
+            ].map(c => `
+              <button
+                class="btn-category-tab px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${state.selectedCategory === c.id ? 'bg-white text-amber-700 border border-amber-300 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
+                data-cat="${c.id}"
+              >
+                ${c.label}
+              </button>
+            `).join('')}
+            ${isAdmin ? `
+              <button id="btnOpenAddTab" class="px-3 py-1.5 bg-white border border-dashed border-slate-300 text-slate-600 rounded-xl text-xs font-semibold whitespace-nowrap">+ Add Custom Tab</button>
+            ` : ''}
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+            <form id="metricsForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              ${renderCategoryFields(currentData)}
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCategoryFields(data) {
+      if (state.selectedCategory === 'TLR') {
+        return `
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Total Enrolled Students (SS)</label>
+            <input type="number" name="tlr_ss" value="${data.tlr_ss ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="e.g. 710" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Faculty Student Ratio (FSR)</label>
+            <input type="number" step="0.1" name="tlr_fsr" value="${data.tlr_fsr ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="Ideal 1:15" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Faculty Qualification % (FQE)</label>
+            <input type="number" name="tlr_fqe" value="${data.tlr_fqe ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="0 - 100%" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Financial Utilization % (FRU)</label>
+            <input type="number" name="tlr_fru" value="${data.tlr_fru ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="0 - 100%" />
+          </div>
+        `;
+      }
+      if (state.selectedCategory === 'RPC') {
+        return `
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Indexed Publications (PU)</label>
+            <input type="number" name="rpc_pu" value="${data.rpc_pu ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="Scopus / WoS" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Quality Citations (QP)</label>
+            <input type="number" name="rpc_qp" value="${data.rpc_qp ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="Citations Count" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">IPR & Patents Count</label>
+            <input type="number" name="rpc_ipr" value="${data.rpc_ipr ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="Patents" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Sponsored R&D (₹ in Lakhs)</label>
+            <input type="number" step="0.5" name="rpc_fppp" value="${data.rpc_fppp ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="₹ Lakhs" />
+          </div>
+        `;
+      }
+      if (state.selectedCategory === 'GO') {
+        return `
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">University Exams Pass % (GUE)</label>
+            <input type="number" step="0.1" name="go_gue" value="${data.go_gue ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="0 - 100%" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Students Placed / Higher Ed</label>
+            <input type="number" name="go_gph_placed" value="${data.go_gph_placed ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="Offers" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Median Annual Package (₹ LPA)</label>
+            <input type="number" step="0.1" name="go_gph_salary" value="${data.go_gph_salary ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="e.g. 6.5 LPA" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">PhD Graduates (GPHD)</label>
+            <input type="number" name="go_gphd" value="${data.go_gphd ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" placeholder="Count" />
+          </div>
+        `;
+      }
+      if (state.selectedCategory === 'OI') {
+        return `
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Regional Diversity % (RD)</label>
+            <input type="number" name="oi_rd" value="${data.oi_rd ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Women Diversity % (WD)</label>
+            <input type="number" name="oi_wd" value="${data.oi_wd ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Socio-economic % (ESCS)</label>
+            <input type="number" name="oi_escs" value="${data.oi_escs ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Disability Facilities % (PCS)</label>
+            <input type="number" name="oi_pcs" value="${data.oi_pcs ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+          </div>
+        `;
+      }
+      if (state.selectedCategory === 'PR') {
+        return `
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Academic Peer Perception Index (0 - 100)</label>
+            <input type="number" name="pr_peer" value="${data.pr_peer ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+          </div>
+          <div class="space-y-1.5">
+            <label class="text-xs font-semibold text-slate-700">Recruiter Perception Index (0 - 100)</label>
+            <input type="number" name="pr_employer" value="${data.pr_employer ?? ''}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+          </div>
+        `;
+      }
+      return `
+        <div class="space-y-1.5 lg:col-span-2">
+          <label class="text-xs font-semibold text-slate-700">Custom Self-Assessment Score (0 - 100)</label>
+          <input type="number" name="custom_${state.selectedCategory}" value="${data[`custom_${state.selectedCategory}`] || 75}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm" />
+        </div>
+      `;
+    }
+
+    function renderCredentialsVault() {
+      return `
+        <div class="space-y-6">
+          <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200 inline-block mb-1">
+                Restricted Admin Vault
+              </span>
+              <h2 class="text-lg font-bold text-slate-900">Department Access Key & Security Vault</h2>
+              <p class="text-xs text-slate-500 mt-0.5 font-medium">All department sign-in tokens are concealed by default. Unmask or rotate credentials securely.</p>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="btnToggleAllKeys" class="px-3.5 py-2 rounded-xl text-xs font-bold border ${state.allKeysRevealed ? 'bg-rose-50 text-rose-800 border-rose-200' : 'bg-slate-100 text-slate-700 border-slate-200'}">
+                ${state.allKeysRevealed ? 'Conceal All Vault Keys' : 'Reveal All Vault Keys'}
+              </button>
+              <button id="btnOpenAddDept" class="px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold rounded-xl text-xs shadow-sm">
+                + Add Department
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            ${state.departments.map(dept => {
+              const isRevealed = Boolean(state.revealedKeys[dept.id] || state.allKeysRevealed);
+              return `
+                <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                  <div>
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <span class="text-xs font-black text-amber-800 uppercase bg-amber-100 px-2 py-0.5 rounded border border-amber-200">${dept.id}</span>
+                        <h4 class="font-bold text-slate-900 text-sm mt-2">${dept.name}</h4>
+                      </div>
+                      <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">${dept.status}</span>
+                    </div>
+                    <div class="mt-3 space-y-1 text-xs text-slate-600">
+                      <div><strong>HOD:</strong> ${dept.hod}</div>
+                      <div><strong>Sanctioned Intake:</strong> ${dept.intake} Seats</div>
+                      <div><strong>Last Active:</strong> ${dept.lastActive || 'Today'}</div>
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                      <span>Department Sign-in Passkey</span>
+                      <span class="text-[10px] font-bold px-1.5 py-0.2 rounded ${isRevealed ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'}">${isRevealed ? 'Revealed' : 'Concealed'}</span>
+                    </div>
+
+                    <div class="font-mono text-xs font-bold text-slate-800 tracking-wider bg-white px-3 py-2 rounded-lg border border-slate-200 flex items-center justify-between">
+                      <span>${isRevealed ? dept.accessKey : '••••••••••••••••'}</span>
+                      <button class="btn-toggle-key text-slate-400 hover:text-slate-700 text-xs font-bold" data-dept="${dept.id}">
+                        ${isRevealed ? 'Hide' : 'Show'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <button class="btn-edit-dept flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-semibold" data-dept="${dept.id}">
+                      Edit Details
+                    </button>
+                    <button class="btn-rotate-key py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold" data-dept="${dept.id}">
+                      Rotate Key
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderAiInsights() {
+      const analytics = getAggregatedAnalytics();
+      const base = analytics ? analytics.compositeScore : 50;
+      const boost = (
+        (state.simulatedBoosts.facultyPhdBoost * 0.15) +
+        (state.simulatedBoosts.publicationsBoost * 0.12) +
+        (state.simulatedBoosts.salaryLakhsBoost * 1.8) +
+        (state.simulatedBoosts.perceptionBoost * 0.10)
+      );
+      const simulatedScore = Number(Math.min(100, base + boost).toFixed(2));
+
+      return `
+        <div class="space-y-6">
+          <div class="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-slate-50 border border-blue-200 rounded-3xl p-6 sm:p-8 shadow-sm">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div class="space-y-2">
+                <span class="text-xs font-bold uppercase tracking-widest text-amber-800 bg-amber-100 px-3 py-0.5 rounded-full border border-amber-200">
+                  Gemini AI • Deep NIRF Diagnostics
+                </span>
+                <h2 class="text-2xl font-black text-slate-900">AI Institutional Strategy & Ranking Predictor</h2>
+                <p class="text-xs text-slate-600 max-w-2xl leading-relaxed font-medium">
+                  Evaluates multi-departmental data patterns, highlights ranking vulnerabilities, and synthesizes intervention blueprints.
+                </p>
+              </div>
+
+              <button id="btnRunAiAdvisor" class="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 text-white font-extrabold rounded-2xl text-sm shadow-sm transition-all whitespace-nowrap">
+                ${state.aiGenerating ? 'Synthesizing...' : 'Generate AI Strategic Dossier'}
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-5">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <h3 class="text-base font-bold text-slate-900">Interactive "What-If" Scenario Modeler</h3>
+                <p class="text-xs text-slate-500 font-medium">Simulate institutional interventions to forecast score changes</p>
+              </div>
+              <div class="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
+                <div class="text-right">
+                  <span class="text-[10px] uppercase font-bold text-slate-500 block">Forecasted Score</span>
+                  <span class="text-lg font-black text-amber-700">${simulatedScore} Pts</span>
+                </div>
+                <div class="text-xs text-emerald-700 font-bold">+${(simulatedScore - base).toFixed(2)} Δ</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div class="flex items-center justify-between text-xs font-semibold">
+                  <span class="text-slate-700">PhD Faculty Ratio</span>
+                  <span class="text-amber-700 font-bold">+${state.simulatedBoosts.facultyPhdBoost}%</span>
+                </div>
+                <input type="range" min="0" max="30" step="5" value="${state.simulatedBoosts.facultyPhdBoost}" id="rngPhd" class="w-full accent-amber-500 cursor-pointer" />
+              </div>
+
+              <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div class="flex items-center justify-between text-xs font-semibold">
+                  <span class="text-slate-700">Scopus Pubs / Dept</span>
+                  <span class="text-amber-700 font-bold">+${state.simulatedBoosts.publicationsBoost} papers</span>
+                </div>
+                <input type="range" min="0" max="40" step="5" value="${state.simulatedBoosts.publicationsBoost}" id="rngPubs" class="w-full accent-amber-500 cursor-pointer" />
+              </div>
+
+              <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div class="flex items-center justify-between text-xs font-semibold">
+                  <span class="text-slate-700">Median Salary</span>
+                  <span class="text-amber-700 font-bold">+${state.simulatedBoosts.salaryLakhsBoost} LPA</span>
+                </div>
+                <input type="range" min="0" max="4" step="0.5" value="${state.simulatedBoosts.salaryLakhsBoost}" id="rngSalary" class="w-full accent-amber-500 cursor-pointer" />
+              </div>
+
+              <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div class="flex items-center justify-between text-xs font-semibold">
+                  <span class="text-slate-700">Perception Outreach</span>
+                  <span class="text-amber-700 font-bold">+${state.simulatedBoosts.perceptionBoost} pts</span>
+                </div>
+                <input type="range" min="0" max="25" step="5" value="${state.simulatedBoosts.perceptionBoost}" id="rngPerception" class="w-full accent-amber-500 cursor-pointer" />
+              </div>
+            </div>
+          </div>
+
+          ${state.aiInsightsData ? `
+            <div class="space-y-6">
+              <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-3">
+                <h3 class="text-base font-bold text-slate-900">Executive Strategic Summary</h3>
+                <p class="text-xs sm:text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-200 font-medium">
+                  ${state.aiInsightsData.executiveSummary}
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white border border-emerald-200 rounded-2xl p-6 shadow-sm space-y-3">
+                  <h4 class="text-sm font-bold text-emerald-800">Validated Institutional Strengths</h4>
+                  <ul class="space-y-2 text-xs text-slate-700">
+                    ${state.aiInsightsData.coreStrengths.map(s => `<li class="p-2 bg-emerald-50/60 rounded-lg border border-emerald-100">• ${s}</li>`).join('')}
+                  </ul>
+                </div>
+                <div class="bg-white border border-rose-200 rounded-2xl p-6 shadow-sm space-y-3">
+                  <h4 class="text-sm font-bold text-rose-800">Critical Metric Bottlenecks</h4>
+                  <ul class="space-y-2 text-xs text-slate-700">
+                    ${state.aiInsightsData.criticalVulnerabilities.map(v => `<li class="p-2 bg-rose-50/60 rounded-lg border border-rose-100">• ${v}</li>`).join('')}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function renderAuditLogs() {
+      return `
+        <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">System Audit Trail & Cryptographic Log</h3>
+              <p class="text-xs text-slate-500">Chronological ledger of logins, modifications, and credential rotations.</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-700">
+              <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-3">Timestamp</th>
+                  <th class="py-3 px-3">User</th>
+                  <th class="py-3 px-3">Action</th>
+                  <th class="py-3 px-3">Details</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono">
+                ${state.auditLogs.map(log => `
+                  <tr class="hover:bg-slate-50">
+                    <td class="py-2.5 px-3 text-slate-500 text-[11px] whitespace-nowrap">${log.timestamp}</td>
+                    <td class="py-2.5 px-3 text-amber-700 font-bold">${log.user}</td>
+                    <td class="py-2.5 px-3 text-slate-900 font-semibold">${log.action}</td>
+                    <td class="py-2.5 px-3 text-slate-600 font-sans">${log.details}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderModals() {
+      let modalHtml = '';
+      if (state.editingDeptModal) {
+        const d = state.editingDeptModal;
+        modalHtml += `
+          <div class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900">Edit Department Profile: ${d.id}</h3>
+                <button id="btnCloseEditModal" class="text-slate-400 hover:text-slate-600">✕</button>
+              </div>
+
+              <form id="formEditDept" class="space-y-4">
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 block mb-1">Department Nomenclature</label>
+                  <input type="text" id="editDeptName" value="${d.name}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900" required />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-semibold text-slate-700 block mb-1">Head of Dept (HOD)</label>
+                    <input type="text" id="editDeptHod" value="${d.hod}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900" required />
+                  </div>
+                  <div>
+                    <label class="text-xs font-semibold text-slate-700 block mb-1">Sanctioned Intake</label>
+                    <input type="number" id="editDeptIntake" value="${d.intake}" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm text-slate-900" required />
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button type="button" id="btnCancelEdit" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+                  <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+      }
+
+      if (state.showAddDeptModal) {
+        modalHtml += `
+          <div class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900">Register New Department</h3>
+                <button id="btnCloseAddModal" class="text-slate-400 hover:text-slate-600">✕</button>
+              </div>
+
+              <form id="formAddDept" class="space-y-4">
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 block mb-1">Department Identifier (e.g. MECH)</label>
+                  <input type="text" id="addDeptId" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm uppercase" required />
+                </div>
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 block mb-1">Full Title</label>
+                  <input type="text" id="addDeptName" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="text-xs font-semibold text-slate-700 block mb-1">HOD Name</label>
+                    <input type="text" id="addDeptHod" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" />
+                  </div>
+                  <div>
+                    <label class="text-xs font-semibold text-slate-700 block mb-1">Intake</label>
+                    <input type="number" id="addDeptIntake" value="60" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" />
+                  </div>
+                </div>
+
+                <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button type="button" id="btnCancelAdd" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+                  <button type="submit" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold">Register Dept</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+      }
+
+      if (state.showAddYearModal) {
+        modalHtml += `
+          <div class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900">Add Academic Cycle</h3>
+                <button id="btnCloseYearModal" class="text-slate-400 hover:text-slate-600">✕</button>
+              </div>
+              <form id="formAddYear" class="space-y-4">
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 block mb-1">Year Label (e.g. 2026-27)</label>
+                  <input type="text" id="addYearInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button type="button" id="btnCancelYear" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+                  <button type="submit" class="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold">Create Cycle</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+      }
+
+      if (state.showAddTabModal) {
+        modalHtml += `
+          <div class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="bg-white border border-slate-200 rounded-2xl w-full max-w-sm p-6 shadow-2xl space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="text-base font-bold text-slate-900">Add Custom Dimension</h3>
+                <button id="btnCloseTabModal" class="text-slate-400 hover:text-slate-600">✕</button>
+              </div>
+              <form id="formAddTab" class="space-y-4">
+                <div>
+                  <label class="text-xs font-semibold text-slate-700 block mb-1">Dimension Label (e.g. Green Audit)</label>
+                  <input type="text" id="addTabInput" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-sm" required />
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button type="button" id="btnCancelTab" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-semibold">Cancel</button>
+                  <button type="submit" class="px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold">Append Tab</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        `;
+      }
+
+      return modalHtml;
+    }
+
+    function renderFooter() {
+      return `
+        <footer class="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-500 mt-auto">
+          <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span class="font-semibold text-slate-700">${COLLEGE_NAME} • ${COLLEGE_AFFILIATION}</span>
+            <span>NIRF Compliance & Intelligence Central Unit</span>
+          </div>
+        </footer>
+      `;
+    }
+
+    // --- 6. EVENT DISPATCH & LISTENERS ---
+    function bindLoginEvents() {
+      const form = document.getElementById('loginForm');
+      if (!form) return;
+
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('loginInput').value.trim();
+
+        if (isFirebaseReady && auth) {
+          auth.signInWithEmailAndPassword(input, 'password123')
+            .then(userCred => {
+              state.currentUser = { email: userCred.user.email, role: 'admin', departmentId: null };
+              showToast('Authenticated via Firebase.');
+            })
+            .catch(() => authenticateLocally(input));
+        } else {
+          authenticateLocally(input);
+        }
+      });
+    }
+
+    function authenticateLocally(input) {
+      if (input === 'shiva@1' || input.toLowerCase() === 'admin' || input.toLowerCase().includes('admin@jce.ac.in')) {
+        state.currentUser = { email: 'admin@jce.ac.in', role: 'admin', departmentId: null };
+        state.activeTab = 'dashboard';
+        logAudit('Admin Sign In', 'Superadmin session authorized for JCE Central Cell.');
+        showToast('Welcome, Administrator.');
+      } else {
+        const matchedDept = state.departments.find(d => d.accessKey === input || d.id.toLowerCase() === input.toLowerCase() || input.toLowerCase().includes(d.id.toLowerCase()));
+        if (matchedDept) {
+          state.currentUser = { email: `${matchedDept.id.toLowerCase()}@jce.ac.in`, role: 'dept_user', departmentId: matchedDept.id };
+          state.selectedEntryDept = matchedDept.id;
+          state.activeTab = 'data-entry';
+          logAudit('Dept Sign In', `Authorized login for ${matchedDept.name}`);
+          showToast(`Welcome, ${matchedDept.id} Department Coordinator.`);
+        } else {
+          state.authError = 'Invalid Key. Use "shiva@1" for Admin or valid Department Passkey.';
+          render();
+        }
+      }
+    }
+
+    function bindAppEvents() {
+      // Sign Out
+      const handleSignOut = () => {
+        if (isFirebaseReady && auth) auth.signOut();
+        state.currentUser = null;
+        state.activeTab = 'dashboard';
+        render();
+      };
+      const sm = document.getElementById('btnSignOutMobile');
+      const sd = document.getElementById('btnSignOutDesktop');
+      if (sm) sm.addEventListener('click', handleSignOut);
+      if (sd) sd.addEventListener('click', handleSignOut);
+
+      // Cycle Select
+      const selectCycle = document.getElementById('selectCycle');
+      if (selectCycle) {
+        selectCycle.addEventListener('change', (e) => {
+          state.selectedYear = e.target.value;
+          render();
+        });
+      }
+
+      // Dept Filter
+      const selectDeptFilter = document.getElementById('selectDeptFilter');
+      if (selectDeptFilter) {
+        selectDeptFilter.addEventListener('change', (e) => {
+          state.selectedDeptFilter = e.target.value;
+          render();
+        });
+      }
+
+      // Graph View
+      document.querySelectorAll('.btn-graph-view').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.graphMetricView = btn.getAttribute('data-view');
+          render();
+        });
+      });
+
+      // Tabs
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeTab = btn.getAttribute('data-tab');
+          render();
+        });
+      });
+
+      // Entry Dept Switch
+      document.querySelectorAll('.btn-switch-entry-dept').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedEntryDept = btn.getAttribute('data-dept');
+          render();
+        });
+      });
+
+      // Category Switch
+      document.querySelectorAll('.btn-category-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.selectedCategory = btn.getAttribute('data-cat');
+          render();
+        });
+      });
+
+      // Save Metrics
+      const btnSaveMetrics = document.getElementById('btnSaveMetrics');
+      if (btnSaveMetrics) {
+        btnSaveMetrics.addEventListener('click', () => {
+          const form = document.getElementById('metricsForm');
+          if (!form) return;
+
+          const formData = new FormData(form);
+          const targetDeptId = state.currentUser.role === 'admin' ? state.selectedEntryDept : state.currentUser.departmentId;
+
+          if (!state.dataRecords[state.selectedYear]) state.dataRecords[state.selectedYear] = {};
+          if (!state.dataRecords[state.selectedYear][targetDeptId]) state.dataRecords[state.selectedYear][targetDeptId] = {};
+
+          formData.forEach((val, key) => {
+            state.dataRecords[state.selectedYear][targetDeptId][key] = val === '' ? '' : Number(val);
+          });
+
+          if (isFirebaseReady && db) {
+            db.collection('cycles').doc(state.selectedYear).collection('records').doc(targetDeptId)
+              .set(state.dataRecords[state.selectedYear][targetDeptId], { merge: true })
+              .catch(e => console.warn(e));
+          }
+
+          logAudit('Updated Records', `Updated metrics for ${targetDeptId} in cycle ${state.selectedYear}`);
+          showToast(`Saved metrics for ${targetDeptId} successfully.`);
+        });
+      }
+
+      // Credentials Vault Actions
+      const btnToggleAllKeys = document.getElementById('btnToggleAllKeys');
+      if (btnToggleAllKeys) {
+        btnToggleAllKeys.addEventListener('click', () => {
+          state.allKeysRevealed = !state.allKeysRevealed;
+          render();
+        });
+      }
+
+      document.querySelectorAll('.btn-toggle-key').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const deptId = btn.getAttribute('data-dept');
+          state.revealedKeys[deptId] = !state.revealedKeys[deptId];
+          render();
+        });
+      });
+
+      document.querySelectorAll('.btn-rotate-key').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const deptId = btn.getAttribute('data-dept');
+          const newKey = `JCE-${deptId}-${Math.floor(1000 + Math.random() * 9000)}`;
+          const d = state.departments.find(item => item.id === deptId);
+          if (d) {
+            d.accessKey = newKey;
+            d.lastActive = 'Rotated Now';
+          }
+          logAudit('Key Rotated', `Generated new passkey for ${deptId}`);
+          showToast(`Passkey rotated for ${deptId}`);
+        });
+      });
+
+      // Export Actions
+      const btnCSV = document.getElementById('btnExportCSV');
+      if (btnCSV) {
+        btnCSV.addEventListener('click', () => {
+          const yearData = state.dataRecords[state.selectedYear] || {};
+          let csv = "Department,TLR,RPC,GO,OI,PR,Total\n";
+          Object.keys(yearData).forEach(dId => {
+            const p = calculatePillarScores(yearData[dId]);
+            csv += `"${dId}",${p.tlr},${p.rpc},${p.go},${p.oi},${p.pr},${p.total}\n`;
+          });
+          const link = document.createElement("a");
+          link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
+          link.download = `JCE_NIRF_${state.selectedYear}.csv`;
+          link.click();
+          showToast(`Exported CSV for ${state.selectedYear}`);
+        });
+      }
+
+      const btnJSON = document.getElementById('btnExportJSON');
+      if (btnJSON) {
+        btnJSON.addEventListener('click', () => {
+          const payload = { institution: COLLEGE_NAME, year: state.selectedYear, records: state.dataRecords[state.selectedYear] };
+          const link = document.createElement("a");
+          link.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload, null, 2));
+          link.download = `JCE_NIRF_Snapshot_${state.selectedYear}.json`;
+          link.click();
+          showToast('Master JSON snapshot downloaded.');
+        });
+      }
+
+      const btnPDF = document.getElementById('btnPrintPDF');
+      if (btnPDF) {
+        btnPDF.addEventListener('click', () => window.print());
+      }
+
+      // Modals
+      document.querySelectorAll('.btn-edit-dept').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const dId = btn.getAttribute('data-dept');
+          const d = state.departments.find(item => item.id === dId);
+          if (d) {
+            state.editingDeptModal = { ...d };
+            render();
+          }
+        });
+      });
+
+      const closeEdit = () => { state.editingDeptModal = null; render(); };
+      const ce1 = document.getElementById('btnCloseEditModal');
+      const ce2 = document.getElementById('btnCancelEdit');
+      if (ce1) ce1.addEventListener('click', closeEdit);
+      if (ce2) ce2.addEventListener('click', closeEdit);
+
+      const formEdit = document.getElementById('formEditDept');
+      if (formEdit) {
+        formEdit.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const targetId = state.editingDeptModal.id;
+          const name = document.getElementById('editDeptName').value.trim();
+          const hod = document.getElementById('editDeptHod').value.trim();
+          const intake = Number(document.getElementById('editDeptIntake').value) || 60;
+
+          const idx = state.departments.findIndex(d => d.id === targetId);
+          if (idx !== -1) {
+            state.departments[idx] = { ...state.departments[idx], name, hod, intake };
+          }
+          if (isFirebaseReady && db) {
+            db.collection('departments').doc(targetId).set({ name, hod, intake }, { merge: true }).catch(err => console.warn(err));
+          }
+          logAudit('Profile Configured', `Updated ${targetId}: HOD -> ${hod}, Intake -> ${intake}`);
+          state.editingDeptModal = null;
+          showToast(`Saved configuration for ${targetId}`);
+        });
+      }
+
+      // Add Dept
+      const btnOpenAddDept = document.getElementById('btnOpenAddDept');
+      if (btnOpenAddDept) {
+        btnOpenAddDept.addEventListener('click', () => { state.showAddDeptModal = true; render(); });
+      }
+      const closeAdd = () => { state.showAddDeptModal = false; render(); };
+      const ca1 = document.getElementById('btnCloseAddModal');
+      const ca2 = document.getElementById('btnCancelAdd');
+      if (ca1) ca1.addEventListener('click', closeAdd);
+      if (ca2) ca2.addEventListener('click', closeAdd);
+
+      const formAdd = document.getElementById('formAddDept');
+      if (formAdd) {
+        formAdd.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const id = document.getElementById('addDeptId').value.trim().toUpperCase();
+          const name = document.getElementById('addDeptName').value.trim();
+          const hod = document.getElementById('addDeptHod').value.trim() || 'Coordinator';
+          const intake = Number(document.getElementById('addDeptIntake').value) || 60;
+
+          if (!state.departments.some(d => d.id === id)) {
+            const newDept = { id, name, code: String(state.departments.length + 1).padStart(2, '0'), hod, intake, accessKey: `JCE-${id}-${Math.floor(1000 + Math.random() * 9000)}`, status: 'Active' };
+            state.departments.push(newDept);
+            logAudit('Department Registered', `Created ${name} (${id})`);
+            showToast(`Department ${name} added.`);
+          }
+          state.showAddDeptModal = false;
+          render();
+        });
+      }
+
+      // Add Year
+      const btnOpenAddYear = document.getElementById('btnOpenAddYear');
+      if (btnOpenAddYear) {
+        btnOpenAddYear.addEventListener('click', () => { state.showAddYearModal = true; render(); });
+      }
+      const closeYear = () => { state.showAddYearModal = false; render(); };
+      const cy1 = document.getElementById('btnCloseYearModal');
+      const cy2 = document.getElementById('btnCancelYear');
+      if (cy1) cy1.addEventListener('click', closeYear);
+      if (cy2) cy2.addEventListener('click', closeYear);
+
+      const formYear = document.getElementById('formAddYear');
+      if (formYear) {
+        formYear.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const y = document.getElementById('addYearInput').value.trim();
+          if (y && !state.academicYears.includes(y)) {
+            state.academicYears.unshift(y);
+            state.dataRecords[y] = JSON.parse(JSON.stringify(state.dataRecords[state.selectedYear] || {}));
+            state.selectedYear = y;
+            logAudit('Cycle Added', `Initialized ${y}`);
+            showToast(`Assessment cycle ${y} created.`);
+          }
+          state.showAddYearModal = false;
+          render();
+        });
+      }
+
+      // Add Tab
+      const btnOpenAddTab = document.getElementById('btnOpenAddTab');
+      if (btnOpenAddTab) {
+        btnOpenAddTab.addEventListener('click', () => { state.showAddTabModal = true; render(); });
+      }
+      const closeTab = () => { state.showAddTabModal = false; render(); };
+      const ct1 = document.getElementById('btnCloseTabModal');
+      const ct2 = document.getElementById('btnCancelTab');
+      if (ct1) ct1.addEventListener('click', closeTab);
+      if (ct2) ct2.addEventListener('click', closeTab);
+
+      const formTab = document.getElementById('formAddTab');
+      if (formTab) {
+        formTab.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const tabName = document.getElementById('addTabInput').value.trim();
+          const tabId = tabName.toUpperCase().replace(/\s+/g, '_');
+          if (!state.customTabs.some(t => t.id === tabId)) {
+            state.customTabs.push({ id: tabId, name: tabName });
+            showToast(`Custom dimension "${tabName}" appended.`);
+          }
+          state.showAddTabModal = false;
+          render();
+        });
+      }
+
+      // AI Simulator Sliders
+      const rPhd = document.getElementById('rngPhd');
+      if (rPhd) rPhd.addEventListener('input', (e) => { state.simulatedBoosts.facultyPhdBoost = Number(e.target.value); render(); });
+      const rPubs = document.getElementById('rngPubs');
+      if (rPubs) rPubs.addEventListener('input', (e) => { state.simulatedBoosts.publicationsBoost = Number(e.target.value); render(); });
+      const rSal = document.getElementById('rngSalary');
+      if (rSal) rSal.addEventListener('input', (e) => { state.simulatedBoosts.salaryLakhsBoost = Number(e.target.value); render(); });
+      const rPerc = document.getElementById('rngPerception');
+      if (rPerc) rPerc.addEventListener('input', (e) => { state.simulatedBoosts.perceptionBoost = Number(e.target.value); render(); });
+
+      // Run AI Advisor
+      const btnRunAi = document.getElementById('btnRunAiAdvisor');
+      if (btnRunAi) {
+        btnRunAi.addEventListener('click', () => {
+          state.aiGenerating = true;
+          render();
+          setTimeout(() => {
+            const analytics = getAggregatedAnalytics();
+            state.aiInsightsData = {
+              executiveSummary: `Based on the ${state.selectedYear} submission data, Jain College of Engineering, Belagavi achieves an institutional composite index of ${analytics.compositeScore}/100. Strongest performance is registered in Graduation Outcomes (GO: ${analytics.avgGO}) and Teaching-Learning (TLR: ${analytics.avgTLR}). The principal lever to elevate JCE Belagavi into the Top 100 NIRF Engineering Band lies in accelerating Scopus/WoS publications and sponsored research grants (RPC).`,
+              coreStrengths: [
+                `High Pass Percentage & Placement Conversion in CSE, AI&DS, and ISE branches (Avg GO: ${analytics.avgGO}).`,
+                `Robust faculty retention and qualification metrics (FQE > 78%).`,
+                `Full disability compliance and barrier-free campus infrastructure (PCS > 85%).`
+              ],
+              criticalVulnerabilities: [
+                `Research & Professional Practice (RPC: ${analytics.avgRPC}) is below the Top-100 national benchmark of 55+.`,
+                `Sponsored R&D grant revenue (FPPP) in Mechanical, Civil & EEE is suboptimal compared to computing branches.`,
+                `Academic peer perception (PR: ${analytics.avgPR}) requires aggressive outreach outside North Karnataka.`
+              ]
+            };
+            state.aiGenerating = false;
+            logAudit('AI Diagnostic Run', `Synthesized strategic dossier for cycle ${state.selectedYear}`);
+            showToast('AI Institutional Diagnostic synthesized.');
+          }, 800);
+        });
+      }
+    }
+
+    // --- 7. APPLICATION BOOTSTRAP ---
+    window.addEventListener('DOMContentLoaded', () => {
+      render();
+    });
+  </script>
+</body>
+</html>
