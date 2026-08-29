@@ -75,8 +75,6 @@
 
     const DEFAULT_DEPARTMENTS = [
       { id: 'CSE', name: 'Computer Science & Engineering', code: '01', hod: 'Dr. S. K. Patil', intake: 180, accessKey: 'JCE-CSE-8942', status: 'Active', lastActive: '2026-08-28 14:32' },
-      { id: 'AI_DS', name: 'Artificial Intelligence & Data Science', code: '02', hod: 'Dr. V. M. Joshi', intake: 120, accessKey: 'JCE-AIDS-4112', status: 'Active', lastActive: '2026-08-29 09:15' },
-      { id: 'ISE', name: 'Information Science & Engineering', code: '03', hod: 'Dr. R. A. Kulkarni', intake: 120, accessKey: 'JCE-ISE-7721', status: 'Active', lastActive: '2026-08-27 16:40' },
       { id: 'ECE', name: 'Electronics & Communication Engg.', code: '04', hod: 'Dr. M. S. Hiremath', intake: 120, accessKey: 'JCE-ECE-3398', status: 'Active', lastActive: '2026-08-29 08:20' },
       { id: 'MECH', name: 'Mechanical Engineering', code: '05', hod: 'Dr. G. B. Chate', intake: 60, accessKey: 'JCE-MECH-5510', status: 'Active', lastActive: '2026-08-25 11:10' },
       { id: 'CIVIL', name: 'Civil Engineering', code: '06', hod: 'Dr. N. C. Hiremath', intake: 60, accessKey: 'JCE-CIVIL-2294', status: 'Active', lastActive: '2026-08-26 15:55' },
@@ -89,8 +87,6 @@
     const DEFAULT_RECORDS = {
       '2025-26': {
         CSE: { tlr_ss: 710, tlr_fsr: 18.5, tlr_fqe: 82, tlr_fru: 88, rpc_pu: 68, rpc_qp: 420, rpc_ipr: 14, rpc_fppp: 28.5, go_gue: 94.2, go_gph_placed: 148, go_gph_salary: 6.8, go_gphd: 4, oi_rd: 22, oi_wd: 38, oi_escs: 45, oi_pcs: 90, pr_peer: 65, pr_employer: 72 },
-        AI_DS: { tlr_ss: 440, tlr_fsr: 17.2, tlr_fqe: 75, tlr_fru: 85, rpc_pu: 45, rpc_qp: 260, rpc_ipr: 9, rpc_fppp: 18.0, go_gue: 92.0, go_gph_placed: 88, go_gph_salary: 7.2, go_gphd: 2, oi_rd: 25, oi_wd: 42, oi_escs: 40, oi_pcs: 88, pr_peer: 62, pr_employer: 70 },
-        ISE: { tlr_ss: 450, tlr_fsr: 19.0, tlr_fqe: 76, tlr_fru: 80, rpc_pu: 38, rpc_qp: 210, rpc_ipr: 7, rpc_fppp: 14.5, go_gue: 91.5, go_gph_placed: 94, go_gph_salary: 6.2, go_gphd: 1, oi_rd: 18, oi_wd: 36, oi_escs: 42, oi_pcs: 85, pr_peer: 58, pr_employer: 65 },
         ECE: { tlr_ss: 460, tlr_fsr: 18.0, tlr_fqe: 80, tlr_fru: 82, rpc_pu: 42, rpc_qp: 280, rpc_ipr: 11, rpc_fppp: 22.0, go_gue: 89.4, go_gph_placed: 86, go_gph_salary: 5.8, go_gphd: 3, oi_rd: 19, oi_wd: 35, oi_escs: 48, oi_pcs: 92, pr_peer: 60, pr_employer: 64 },
         MECH: { tlr_ss: 220, tlr_fsr: 16.5, tlr_fqe: 84, tlr_fru: 78, rpc_pu: 29, rpc_qp: 190, rpc_ipr: 6, rpc_fppp: 16.0, go_gue: 86.5, go_gph_placed: 38, go_gph_salary: 4.8, go_gphd: 2, oi_rd: 12, oi_wd: 18, oi_escs: 50, oi_pcs: 85, pr_peer: 52, pr_employer: 56 },
         CIVIL: { tlr_ss: 210, tlr_fsr: 16.0, tlr_fqe: 78, tlr_fru: 76, rpc_pu: 22, rpc_qp: 140, rpc_ipr: 4, rpc_fppp: 19.5, go_gue: 88.0, go_gph_placed: 34, go_gph_salary: 4.5, go_gphd: 1, oi_rd: 10, oi_wd: 22, oi_escs: 52, oi_pcs: 85, pr_peer: 50, pr_employer: 54 },
@@ -99,7 +95,6 @@
       },
       '2024-25': {
         CSE: { tlr_ss: 680, tlr_fsr: 19.0, tlr_fqe: 78, tlr_fru: 82, rpc_pu: 55, rpc_qp: 340, rpc_ipr: 10, rpc_fppp: 22.0, go_gue: 92.5, go_gph_placed: 136, go_gph_salary: 6.2, go_gphd: 3, oi_rd: 20, oi_wd: 36, oi_escs: 44, oi_pcs: 88, pr_peer: 60, pr_employer: 68 },
-        AI_DS: { tlr_ss: 360, tlr_fsr: 18.0, tlr_fqe: 70, tlr_fru: 80, rpc_pu: 32, rpc_qp: 180, rpc_ipr: 6, rpc_fppp: 12.0, go_gue: 90.0, go_gph_placed: 70, go_gph_salary: 6.5, go_gphd: 1, oi_rd: 22, oi_wd: 40, oi_escs: 38, oi_pcs: 85, pr_peer: 58, pr_employer: 65 }
       }
     };
 
